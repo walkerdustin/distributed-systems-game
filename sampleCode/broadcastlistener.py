@@ -3,10 +3,10 @@ import socket
 
 if __name__ == '__main__':
     # Listening port
-    BROADCAST_PORT = 5973
+    BROADCAST_PORT = 61425
 
     # Local host information
-    MY_HOST = socket.gethostname()
+    MY_HOST = socket.gethostname() # Name of my PC
     MY_IP = socket.gethostbyname(MY_HOST)
 
     # Create a UDP socket

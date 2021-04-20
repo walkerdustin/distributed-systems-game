@@ -36,7 +36,7 @@ class SimonBroadcastsGame():
 
 
 states = {}                 # python dictionary {"key": value}
-class Statemashine(object): # there should be only one Instance of this class
+class Statemachine(object): # there should be only one Instance of this class
     # states = {}                 # this is a class variable, it is consistent in every Instance (Object olf the same class)
                                 # python dictionary {"key": value}
     # State Storage, Parameters and Variables
@@ -102,6 +102,6 @@ class Statemashine(object): # there should be only one Instance of this class
         states[self.currentState].run() # run the current state
 
 if __name__ == '__main__':
-    SM = Statemashine()
+    SM = Statemachine()
     while True:
         SM.runLoop()

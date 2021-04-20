@@ -14,6 +14,8 @@ import socket
 
 class Middleware():
     holdBackQueue = []
+    deliveryQueue = []
+        
     def __init__(self):
         pass
 

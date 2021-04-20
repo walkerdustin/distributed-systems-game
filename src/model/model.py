@@ -96,11 +96,7 @@ class Statemashine(object): # there should be only one Instance of this class
         tempState.run = run3
 
     def runLoop(self):
-
-        for stateKey in states:
-            if self.currentState == stateKey:
-                print('### currentState == "', self.currentState, '"')
-                states[stateKey].run()
+        states[self.currentState].run()
 
 if __name__ == '__main__':
     SM = Statemashine()

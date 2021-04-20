@@ -35,17 +35,16 @@ class SimonBroadcastsGame():
         pass
 
 
-states = {}  
+states = {}                 # python dictionary {"key": value}
 class Statemashine(object): # there should be only one Instance of this class
     # states = {}                 # this is a class variable, it is consistent in every Instance (Object olf the same class)
                                 # python dictionary {"key": value}
-    # Parameters
-    parameter1 = 42
+    # State Storage, Parameters and Variables
+    PARAMETER = 42
     counterN = 0
     ###############################################   internal class
     class State: # there are multiple instances of this class
         total_Number_of_states = 0  # this is a class variable, it is consistent in every Instance (Object olf the same class)
-        states = {}                 # python dictionary {"key": value}
 
         def __init__(self, name):
             self.name = name
@@ -59,22 +58,25 @@ class Statemashine(object): # there should be only one Instance of this class
 
     def __init__(self):
         self.currentState = "Initializing"
-
         ########################################################################### defining all states
         ############################################## State 0
         tempState = self.State("Initializing")
         def run0():
+            # State Actions
             print("initializing....\n")
             sleep(1)
             print(".....")
             sleep(1)
             print(".....")
-            self.currentState = "Step 1"
+            # State Transition
+            self.currentState = "Step 1"    # the self refers to the Statemashine (SM objekt)
         tempState.run = run0 # overriding the run() method of state0
         ############################################## State 1
         tempState = self.State("Step 1")
         def run1():
+            # State Actions
             print("doing step one")
+            # State Transition
             if(True):
                 self.currentState = "Step 2"
         tempState.run = run1
@@ -94,9 +96,10 @@ class Statemashine(object): # there should be only one Instance of this class
             print("finished")
             sleep(2)
         tempState.run = run3
+        ##############################################
 
     def runLoop(self):
-        states[self.currentState].run()
+        states[self.currentState].run() # run the current state
 
 if __name__ == '__main__':
     SM = Statemashine()

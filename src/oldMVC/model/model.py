@@ -2,13 +2,35 @@
 This python script represents the game logic for the simon says game.
 the points, the game state and all the nessecarry functions to compute anything related to the game are here!
 """
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))    # this adds the src folder to the path # now you can import stuff
+# add to path # get parent directory        #get absolut path of # this python file
+
+# the path looks like this now: python looks here vor .py files
+# for p in sys.path:
+#     print(p)
+# c:\Git_Repos\distributed-systems-game\src\model
+# C:\Users\du-wa\AppData\Local\Programs\Python\Python39\python39.zip
+# C:\Users\du-wa\AppData\Local\Programs\Python\Python39\DLLs
+# C:\Users\du-wa\AppData\Local\Programs\Python\Python39\lib
+# C:\Users\du-wa\AppData\Local\Programs\Python\Python39
+# c:\Git_Repos\distributed-systems-game\venv
+# c:\Git_Repos\distributed-systems-game\venv\lib\site-packages
+# c:\Git_Repos\distributed-systems-game\venv\lib\site-packages\win32
+# c:\Git_Repos\distributed-systems-game\venv\lib\site-packages\win32\lib
+# c:\Git_Repos\distributed-systems-game\venv\lib\site-packages\Pythonwin
+# c:\Git_Repos\distributed-systems-game\src                                         <----------
 
 import uuid
 import socket
 import ipaddress
 from broadcastSender import broadcast
 from time import sleep
+from controller.middleware import Middleware
+from library.singletonDecorator import singleton
 
+@singleton
 class SimonBroadcastsGame():
     #constants/defines
     SUBNETMASK = "255.255.255.0"

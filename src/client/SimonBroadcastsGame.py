@@ -25,8 +25,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))    
 import uuid
 from time import sleep
 usleep = lambda x: sleep(x/1000_000.0) # sleep for x microseconds
-from middleware.middleware import BroadcastHandler, Middleware
+from middleware.middleware import Middleware
 import time
+from client.Player import PlayersList
 
 
 ######################################  CONSTANTS
@@ -67,8 +68,10 @@ class Statemachine(): # there should be only one Instance of this class
 
     # State Storage, Parameters and Variables
     UUID = str(uuid.uuid4())
-    scores = {} #{uuid: points}
-    broadcastHandler = BroadcastHandler(UUID)
+    players = PlayersList() 
+    middleware = Middleware(UUID)
+    playerName = ''
+    gameRoomPort = 61424
 
     #players = [] # uuid s of all active players
 
@@ -103,30 +106,39 @@ class Statemachine(): # there should be only one Instance of this class
             print("UUID is: ", self.UUID)
             print("sleeping for 1 second\n\n")
             sleep(1)
-
-            # State Transition
+            self.playerName = input("Select Player Name: ")
+            rawInput = input("Select Game Room Port: \nLeave empty for (Default: 61424)")
+            self.gameRoomPort = (int(rawInput) if rawInput else 61424) #LOL, why can I write something like this? Python is hillarious! XD
+            self.players.addPlayer(self.UUID,self.playerName)
+            self.players.printLobby()
+            # State Transition.
             if True:
-                self.switchStateTo("Idle")    # the self refers to the Statemashine (SM objekt)
+                self.switchStateTo("Lobby")    # the self refers to the Statemashine (SM objekt)
 
         tempState.run = state_initializing_f # overriding the run() method of state0
-        ############################################## Idle
-        tempState = self.State("Idle")
-        def state_idle_entry():
+        ############################################## Lobby
+        tempState = self.State("Lobby")
+        def state_Lobby_entry():
             #entry function
-            message = 'I am looking for Simon.'
-            self.broadcastHandler.broadcast(message)
-            self.StartWaitingTime = time.time_ns()
-            print("looking for other users ...")
-        tempState.entry = state_idle_entry
+            message = 'enterLobby'+
+            self.middleware.broadcastToAll(message)
+            #self.StartWaitingTime = time.time_ns()
+            print("entering Lobby...")
+            ## get Lobby members
+            self.middleware.subscribeBroadcastListener(self.respondWithPlayerList)
+            self.middleware.subscribeUnicastListener(self.listenForPlayers)
+        tempState.entry = state_Lobby_entry
         ##########
-        def state_idle_f():
+        def state_Lobby_f():
             # State Actions
-            data = self.broadcastHandler.incommingBroadcastQ.pop()
-            if time.time_ns() + WAIT__MILLISECONDS_FOR_ANSWER * 1_000_000 > self.StartWaitingTime:
-                self.switchStateTo("simon_startNewRound")
-            if data: # if I got a response
-                self.switchStateTo("player_waitGameStart")
-        tempState.run = state_idle_f
+            usleep(100) # put a sleep in the loop to not stress the cpu to much
+            # data = self.broadcastHandler.incommingBroadcastQ.pop()
+            # if time.time_ns() + WAIT__MILLISECONDS_FOR_ANSWER * 1_000_000 > self.StartWaitingTime:
+            #     self.switchStateTo("simon_startNewRound")
+            # if data: # if I got a response
+            #     self.switchStateTo("player_waitGameStart")
+            pass
+        tempState.run = state_Lobby_f
         ############################################## Voting
         tempState = self.State("Voting")
         def state_voting_f():
@@ -186,12 +198,28 @@ class Statemachine(): # there should be only one Instance of this class
     def runLoop(self):
         states[self.currentState].run() # run the current state
 
+    ################################################################# Observer functions
+    def listenForPlayers(self, message:str):
+        if message.split(':')[1] == 'PlayerList':
+            playersList = message.split(':')[2]
+            self.players.updateList(playersList)
+        
+
+    def respondWithPlayerList(self, message:str):
+        if message.split(':')[1] == 'enterLobby':
+
+            self.middleware.sendIPAdressesto()
+            response = 'PlayerList:'+self.players.toString()
+            self.middleware.sendMessageTo(message.split(':')[0], response)
+
 
 if __name__ == '__main__':
     """
     This is the game
     """
     print("HELLO, this is Simon multicasts\n\n")
+    print("the working Directory is:", os.getcwd())
+    print("The used Python executable is: ", sys.executable)
 
     print("this is my process id: ", os.getpid())
 

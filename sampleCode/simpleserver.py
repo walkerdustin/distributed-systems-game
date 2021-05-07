@@ -1,5 +1,5 @@
 import socket
-
+from time import sleep
 # Create a UDP socket
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -19,12 +19,13 @@ print('Server up and running at {}:{}'.format(server_address, server_port))
 
 while True:
     print('\nWaiting to receive message...\n')
-
+    sleep(100/1_000_000) #100 us
+    
     # Receive message from client
     data, address = server_socket.recvfrom(buffer_size)
     print('Received message from client: ', address)
     print('Message: ', data.decode())
-
+    
     if data:
         # Send message to client
         server_socket.sendto(str.encode(message), address)

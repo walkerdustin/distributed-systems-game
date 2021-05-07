@@ -120,13 +120,14 @@ class Statemachine(): # there should be only one Instance of this class
         tempState = self.State("Lobby")
         def state_Lobby_entry():
             #entry function
-            message = 'enterLobby'+
-            self.middleware.broadcastToAll(message)
+            command = 'enterLobby'
+            data = self.playerName
+            self.middleware.broadcastToAll(command,data)
             #self.StartWaitingTime = time.time_ns()
             print("entering Lobby...")
             ## get Lobby members
             self.middleware.subscribeBroadcastListener(self.respondWithPlayerList)
-            self.middleware.subscribeUnicastListener(self.listenForPlayers)
+            self.middleware.subscribeUnicastListener(self.listenForPlayersList)
         tempState.entry = state_Lobby_entry
         ##########
         def state_Lobby_f():
@@ -199,19 +200,31 @@ class Statemachine(): # there should be only one Instance of this class
         states[self.currentState].run() # run the current state
 
     ################################################################# Observer functions
-    def listenForPlayers(self, message:str):
-        if message.split(':')[1] == 'PlayerList':
-            playersList = message.split(':')[2]
+    def listenForPlayersList(self, messengerUUID:str, command:str, data:str):
+        """This funcion recieves and decodes the message sent from the function respondWithPlayerList
+        the List is severated by , and # 
+        
+        Args:
+            message (str): message looks like this: PlayerList:e54aaddc-54fa-4484-a834-b56f10d55e65,p1,0#
+            messengerUUID (str, optional): [description]. Defaults to None.
+        """
+        #PlayerList:e54aaddc-54fa-4484-a834-b56f10d55e65,p1,0#
+        if command == 'PlayerList':
+            playersList = data
             self.players.updateList(playersList)
         
 
-    def respondWithPlayerList(self, message:str):
-        if message.split(':')[1] == 'enterLobby':
+    def respondWithPlayerList(self, messengerUUID:str, command:str, data:str):
+        if command == 'enterLobby':
+            self.middleware.sendIPAdressesto(messengerUUID)
 
-            self.middleware.sendIPAdressesto()
-            response = 'PlayerList:'+self.players.toString()
-            self.middleware.sendMessageTo(message.split(':')[0], response)
-
+            responseCommand = 'PlayerList'
+            responseData = self.players.toString()
+            self.middleware.sendMessageTo(messengerUUID, responseCommand, responseData)
+            
+            # add the asking player to my game List
+            self.players.addPlayer(messengerUUID, data)
+            self.players.printLobby()
 
 if __name__ == '__main__':
     """

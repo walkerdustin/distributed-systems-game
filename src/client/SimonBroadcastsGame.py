@@ -143,11 +143,13 @@ class Statemachine(): # there should be only one Instance of this class
         ############################################## Voting
         tempState = self.State("Voting")
         def state_voting_f():
-            print("run voting procedure with other hosts")
-            # if IGotElectedAsSimon:
-            #     self.currentState = "simon_waitForPeers"
-            # elif OtherPlayerGotElected:
-            #     self.currentState = "player_waitGameStart"
+            print('Voting started')
+            # casual nodes just wait for new simon announcement
+            # Simon: _initiatesVoting in middleware --> the rest id handled by the middleware
+
+
+
+
         tempState.run = state_voting_f
 
         # SIMON STATES ###############################

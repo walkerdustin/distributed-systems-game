@@ -36,7 +36,10 @@ class Middleware():
         Middleware.MY_UUID = UUID  
         self._broadcastHandler = BroadcastHandler()
         self._unicastHandler = UnicastHandler()
-        self._unicastHandler.subscribeUnicastListener(self._updateAdresses)
+        self.subscribeUnicastListener(self._updateAdresses)
+        self.subscribeUnicastListener(self._checkForVotingAnnouncement)
+
+
 
     @classmethod
     def addIpAdress(cls, uuid, addr):
@@ -64,7 +67,7 @@ class Middleware():
         """
         self._broadcastHandler.subscribeBroadcastListener(observer_func)
     def subscribeUnicastListener(self, observer_func):
-        """this function gets called every time there this programm recieves a broadcast message
+        """this function gets called every time this programm recieves a Unicast message
 
         Args:
             observer_func ([type]): observer_function needs to have func(self, messengerUUID:str, command:str, data:str)
@@ -85,6 +88,34 @@ class Middleware():
                 addrlist = addr.split(',')
                 self.addIpAdress(addrlist[0], (addrlist[1], int(addrlist[2])))
                 #                 uuid           ipadress           port of the unicastListener
+
+    #wird gerade gevoted: true/false
+    
+    def _checkForVotingAnnouncement(self, messengerUUID:str, command:str, data:str):
+        if command == 'newVoting':
+            print('Another Node announced a new voting')
+            # if Sender UUID is bigger then mine
+                # do nothing
+            # if Sender UUID is smaller then mine
+                # _initiateVoting
+        if command == 'newSimon':
+            print('test')
+            # if Sender UUID is bigger then mine
+                # do nothing
+            # if Sender UUID is smaller then mine
+                # _initiateVoting
+
+    def _initiateVoting(self, uuid):
+        # Broadcast Election Message to higher UUID Processes
+        # if no answer
+            # send i'm new Simon and start new game
+        # if answer from higher UUID
+            # wait certain amount of time for that process to broadcast itself as simon
+            # if no message in time
+                # _initiateVoting again
+        # if answer from lower UUID
+            # send 'I am alive' back
+        self.sendMessageTo(MY_UUID, 'newVotingBy_', MY_UUID)
 
 
 class UnicastHandler():

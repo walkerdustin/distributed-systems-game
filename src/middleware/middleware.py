@@ -89,35 +89,66 @@ class Middleware():
                 self.addIpAdress(addrlist[0], (addrlist[1], int(addrlist[2])))
                 #                 uuid           ipadress           port of the unicastListener
 
-    #wird gerade gevoted: true/false
-    
     def _checkForVotingAnnouncement(self, messengerUUID:str, command:str, data:str):
         if command == 'newVoting':
             print('Another Node announced a new voting')
             # if Sender UUID is bigger then mine
+            if data > self.MY_UUID:
                 # do nothing
+                print('The other Node has an higher UUID')
             # if Sender UUID is smaller then mine
+            if data < self.MY_UUID:
                 # _initiateVoting
-        if command == 'newSimon':
-            print('test')
+                self._initiateVoting(self)
+        if command == 'iAmNewSimon':
+            print('Another Node announced he is the new Simon')
             # if Sender UUID is bigger then mine
+            if data > self.MY_UUID:
                 # do nothing
+                print('The other Node has an higher UUID')
             # if Sender UUID is smaller then mine
+            if data < self.MY_UUID:
                 # _initiateVoting
+                self._initiateVoting(self)
 
-    def _initiateVoting(self, uuid):
+    def _initiateVoting(self, messengerUUID:str, command:str, data:str):
         # Broadcast Election Message to higher UUID Processes
-        # if no answer
-            # send i'm new Simon and start new game
-        # if answer from higher UUID
-            # wait certain amount of time for that process to broadcast itself as simon
-            # if no message in time
-                # _initiateVoting again
-        # if answer from lower UUID
-            # send 'I am alive' back
-        self.sendMessageTo(MY_UUID, 'newVotingBy_', MY_UUID)
-
-
+        self.broadcastToAll(self, 'initiateVoting', self.MY_UUID);
+        # wait a second
+        sleep(1)
+        # if answer new voting
+        if command == 'newVoting':
+            print('Another Node announced a new voting')
+            # if Sender UUID is bigger then mine
+            if data > self.MY_UUID:
+                # do nothing
+                print('The other Node has an higher UUID')
+            # if Sender UUID is smaller then mine
+            if data < self.MY_UUID:
+                # _initiateVoting
+                self._initiateVoting(self)
+                return
+        else:
+            return
+        self.broadcastToAll(self, 'iAmNewSimon', self.MY_UUID);
+        # wait a second
+        sleep(1)
+        # if answer new voting
+        if command == 'newVoting':
+            print('Another Node announced a new voting')
+            # if Sender UUID is bigger then mine
+            if data > self.MY_UUID:
+                # do nothing
+                print('The other Node has an higher UUID')
+                return
+            # if Sender UUID is smaller then mine
+            if data < self.MY_UUID:
+                # _initiateVoting
+                self._initiateVoting(self)
+                return
+        else:
+            # start a new Game as Simon
+            print('I am Simon now')
 class UnicastHandler():
     _serverPort = 0 # later changed in the init, it is here to define it as a class variable, so that it is accessable easyly 
 

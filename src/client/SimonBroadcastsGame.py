@@ -145,11 +145,9 @@ class Statemachine(): # there should be only one Instance of this class
         def state_voting_f():
             print('Voting started')
             # casual nodes just wait for new simon announcement
-            # Simon: _initiatesVoting in middleware --> the rest id handled by the middleware
-
-
-
-
+            # Simon: _initiatesVoting in middleware --> the rest is handled by the middleware
+            self.middleware._initiateVoting(self)
+            
         tempState.run = state_voting_f
 
         # SIMON STATES ###############################

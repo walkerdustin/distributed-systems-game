@@ -4,6 +4,7 @@ the points, the game state and all the nessecarry functions to compute anything 
 """
 import sys
 import os
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))    # this adds the src folder to the path # now you can import stuff
 # add to path # get parent directory        #get absolut path of # this python file
 
@@ -28,6 +29,7 @@ usleep = lambda x: sleep(x/1000_000.0) # sleep for x microseconds
 from middleware.middleware import Middleware
 import time
 from client.Player import PlayersList
+from client.heartBeat import HeartBeat
 
 
 ######################################  CONSTANTS
@@ -72,6 +74,7 @@ class Statemachine(): # there should be only one Instance of this class
     middleware = Middleware(UUID)
     playerName = ''
     gameRoomPort = 61424
+    heartbeat = HeartBeat()
 
     #players = [] # uuid s of all active players
 
@@ -108,6 +111,7 @@ class Statemachine(): # there should be only one Instance of this class
             sleep(1)
             self.playerName = input("Select Player Name: ")
             rawInput = input("Select Game Room Port: \nLeave empty for (Default: 61424)")
+            # TODO: need a check here --> ValueError: invalid literal for int() with base 10: 'asdf'
             self.gameRoomPort = (int(rawInput) if rawInput else 61424) #LOL, why can I write something like this? Python is hillarious! XD
             self.players.addPlayer(self.UUID,self.playerName)
             self.players.printLobby()
@@ -125,6 +129,7 @@ class Statemachine(): # there should be only one Instance of this class
             self.middleware.broadcastToAll(command,data)
             #self.StartWaitingTime = time.time_ns()
             print("entering Lobby...")
+
             ## get Lobby members
             self.middleware.subscribeBroadcastListener(self.respondWithPlayerList)
             self.middleware.subscribeUnicastListener(self.listenForPlayersList)
@@ -133,6 +138,15 @@ class Statemachine(): # there should be only one Instance of this class
         def state_Lobby_f():
             # State Actions
             usleep(100) # put a sleep in the loop to not stress the cpu to much
+
+            # keep looking for neighbors if we haven't found both yet
+            if len(HeartBeat.neighborHosts) < 2:
+                HeartBeat.findNeighbor(self.heartbeat, self.UUID, self.players)
+
+            # if we have at least one neighbor, ping them
+            if len(HeartBeat.neighborHosts) > 0:
+                HeartBeat.sendHeartBeat()
+                
             # data = self.broadcastHandler.incommingBroadcastQ.pop()
             # if time.time_ns() + WAIT__MILLISECONDS_FOR_ANSWER * 1_000_000 > self.StartWaitingTime:
             #     self.switchStateTo("simon_startNewRound")

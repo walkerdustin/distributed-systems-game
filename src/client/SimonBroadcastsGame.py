@@ -145,8 +145,8 @@ class Statemachine(): # there should be only one Instance of this class
 
             # if we have at least one neighbor, ping them
             if len(HeartBeat.neighborHosts) > 0:
-                HeartBeat.sendHeartBeat()
-                
+                HeartBeat.sendHeartBeat(self.heartbeat)
+
             # data = self.broadcastHandler.incommingBroadcastQ.pop()
             # if time.time_ns() + WAIT__MILLISECONDS_FOR_ANSWER * 1_000_000 > self.StartWaitingTime:
             #     self.switchStateTo("simon_startNewRound")

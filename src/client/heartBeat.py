@@ -31,18 +31,18 @@ class HeartBeat(): # there should only be one instance of this class
         ownIndex = ordered.index(ownUUID)
         # add neighbor with smaller uuid
         if ownIndex + 1 < len(ordered):
-            if ordered[ownIndex + 1] not in self.neighborHosts and not ownUUID:
+            if ordered[ownIndex + 1] not in self.neighborHosts and ordered[ownIndex + 1] != ownUUID:
                 self.addNeighbor(ordered[ownIndex+1])
         else:
-            if ordered[0] not in self.neighborHosts and not ownUUID:
+            if ordered[0] not in self.neighborHosts and ordered[0] != ownUUID:
                 self.addNeighbor(ordered[0])
         
         # add neighbor with bigger uuid
         if ownIndex > 0:
-            if ordered[ownIndex - 1] not in self.neighborHosts and not ownUUID:
+            if ordered[ownIndex - 1] not in self.neighborHosts and ordered[ownIndex - 1] != ownUUID:
                 self.addNeighbor(ordered[ownIndex - 1])
         else:
-            if ordered[len(ordered) - 1] not in self.neighborHosts and not ownUUID:
+            if ordered[len(ordered) - 1] not in self.neighborHosts and ordered[len(ordered) - 1] != ownUUID:
                 self.addNeighbor(ordered[len(ordered) - 1])
         pass
 

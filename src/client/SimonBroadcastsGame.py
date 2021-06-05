@@ -69,9 +69,9 @@ class Statemachine(): # there should be only one Instance of this class
     # State Storage, Parameters and Variables
     UUID = str(uuid.uuid4())
     players = PlayersList() 
-    middleware = Middleware(UUID)
     playerName = ''
     gameRoomPort = 61424
+    currentState = ''
 
     #players = [] # uuid s of all active players
 
@@ -89,15 +89,17 @@ class Statemachine(): # there should be only one Instance of this class
             pass
     ##############################################
 
-    def switchStateTo(self, toStateName):
-        if "exit" in dir(states[self.currentState]): # check if the state has a exit() function
-            states[self.currentState].exit() # execute the exit function
+    @classmethod
+    def switchStateTo(cls, toStateName):
+        if "exit" in dir(states[cls.currentState]): # check if the state has a exit() function
+            states[cls.currentState].exit() # execute the exit function
         if "entry" in dir(states[toStateName]): # check if the state has a entry() function
             states[toStateName].entry()
-        self.currentState = toStateName
+        cls.currentState = toStateName
 
     def __init__(self):
-        self.currentState = "Initializing"
+        self.middleware = Middleware(Statemachine.UUID, self)
+        Statemachine.currentState = "Initializing"
         ########################################################################### defining all states
         ############################################## Initializing
         tempState = self.State("Initializing")
@@ -145,9 +147,10 @@ class Statemachine(): # there should be only one Instance of this class
         tempState = self.State("Voting")
         def state_voting_f():
             print('Voting started')
-            # casual nodes just wait for new simon announcement
-            # Simon: _initiatesVoting in middleware --> the rest is handled by the middleware
-            self.middleware._initiateVoting(self)
+            # When I'm Simon I start the voting
+            if self.UUID == self.middleware.leaderUUID:
+                self.middleware.initiateVoting()
+            # else i'm doing nothing
             
         tempState.run = state_voting_f
 
@@ -157,14 +160,14 @@ class Statemachine(): # there should be only one Instance of this class
         def state_simon_waitForPeers_f():
             print("Wait for User to input string of chars.")
             print("Multicast string of chars to others.")
-            self.currentState = "simon_startNewRound"
+            Statemachine.switchStateTo("simon_startNewRound")
         tempState.run = state_simon_waitForPeers_f
         ############################################## startNewRound
         tempState = self.State("simon_startNewRound")
         def state_simon_startNewRound_f():
             print("Wait for User to input string of chars.")
             print("Multicast string of chars to others.")
-            self.currentState = "simon_waitForResponses"
+            Statemachine.switchStateTo("simon_waitForResponses")
         tempState.run = state_simon_startNewRound_f
         ############################################## waitForResponses
         tempState = self.State("simon_waitForResponses")
@@ -173,7 +176,7 @@ class Statemachine(): # there should be only one Instance of this class
             # if allPeersResponded or timeoutReached:
             #     print("Evaluate the winner if everyone responded OR timeout reached.")
             #     print("Multicast to every round participant the updated scoreboard.")
-            #     self.currentState = "Voting"
+            #     Statemachine.switchStateTo("Voting")
         tempState.run = state_simon_waitForResponses_f
 
         # PLAYER STATES ##############################
@@ -181,20 +184,20 @@ class Statemachine(): # there should be only one Instance of this class
         tempState = self.State("player_waitGameStart")
         def state_player_waitGameStart_f():
             print("Receive multicast message from Simon containing the string.")
-            self.currentState = "player_playGame"
+            Statemachine.switchStateTo("player_playGame")
         tempState.run = state_player_waitGameStart_f
         ############################################## State 3
         tempState = self.State("player_playGame")
         def state_player_playGame_f():
             print("Wait for User to input string of chars and add timestamp.")
             print("Unicast string of chars to Simon.")
-            self.currentState = "player_awaitSimonResponse"
+            Statemachine.switchStateTo("player_awaitSimonResponse")
         tempState.run = state_player_playGame_f
         ############################################## State 3
         tempState = self.State("player_awaitSimonResponse")
         def player_awaitSimonResponse():
             print("Update and print own copy of global score board.")
-            self.currentState = "Voting"
+            Statemachine.switchStateTo("Voting")
         tempState.run = player_awaitSimonResponse
 
     def runLoop(self):

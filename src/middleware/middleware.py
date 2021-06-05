@@ -35,8 +35,9 @@ class Middleware():
     leaderUUID = ''
 
 
-    def __init__(self,UUID):
-        Middleware.MY_UUID = UUID  
+    def __init__(self,UUID, statemashine):
+        Middleware.MY_UUID = UUID 
+        self.statemashine =  statemashine
         self._broadcastHandler = BroadcastHandler()
         self._unicastHandler = UnicastHandler()
         self._tcpUnicastHandler = TCPUnicastHandler()
@@ -114,14 +115,15 @@ class Middleware():
                 # i'm Simon
                 print('\nI am the new Simon')
                 # reliably multicast my UUID to all players
-                Middleware.multicastReliable(self, 'leaderElected', self.MY_UUID)
+                self.multicastReliable('leaderElected', self.MY_UUID)
+                # set GameState to simon_startNewRound
+                self.statemashine.switchStateTo('simon_startNewRound')
             # if smaller UUID
             elif data < self.MY_UUID:
                 # send my UUID to neighbour
                 command = 'voting'
                 data = self.MY_UUID
                 print('\nsend voting command with my UUID (' + self.MY_UUID + ') to lowerNeighbour')
-
                 self.sendMessageTo(self.findLowerNeighbour(), command, data)
             # if greater UUID
             elif data > self.MY_UUID:
@@ -132,6 +134,8 @@ class Middleware():
         elif command == 'leaderElected':
             print('new Leader got elected')
             Middleware.leaderUUID = data
+            # set GameState to state_player_waitGameStart_f
+            self.statemashine.switchStateTo('state_player_waitGameStart_f')
 
     # diese Funktion muss aufgerufen werden um ein neues Voting zu starten
     def initiateVoting(self):

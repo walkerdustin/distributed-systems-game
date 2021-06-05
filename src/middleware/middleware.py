@@ -98,8 +98,8 @@ class Middleware():
                 print('The other Node has an higher UUID')
             # if Sender UUID is smaller then mine
             if data < self.MY_UUID:
-                # _initiateVoting
-                self._initiateVoting(self)
+                # initiateVoting
+                self.initiateVoting(self)
         if command == 'iAmNewSimon':
             print('Another Node announced he is the new Simon')
             # if Sender UUID is bigger then mine
@@ -108,10 +108,10 @@ class Middleware():
                 print('The other Node has an higher UUID')
             # if Sender UUID is smaller then mine
             if data < self.MY_UUID:
-                # _initiateVoting
-                self._initiateVoting(self)
+                # initiateVoting
+                self.initiateVoting(self)
 
-    def _initiateVoting(self, messengerUUID:str, command:str, data:str):
+    def initiateVoting(self, messengerUUID:str, command:str, data:str):
         # Broadcast Election Message to higher UUID Processes
         self.broadcastToAll(self, 'initiateVoting', self.MY_UUID);
         # wait a second
@@ -125,8 +125,8 @@ class Middleware():
                 print('The other Node has an higher UUID')
             # if Sender UUID is smaller then mine
             if data < self.MY_UUID:
-                # _initiateVoting
-                self._initiateVoting(self)
+                # initiateVoting
+                self.initiateVoting(self)
                 return
         else:
             return
@@ -143,8 +143,8 @@ class Middleware():
                 return
             # if Sender UUID is smaller then mine
             if data < self.MY_UUID:
-                # _initiateVoting
-                self._initiateVoting(self)
+                # initiateVoting
+                self.initiateVoting(self)
                 return
         else:
             # start a new Game as Simon

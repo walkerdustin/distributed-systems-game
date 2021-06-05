@@ -54,13 +54,10 @@ class Middleware():
         ipAdress = self.ipAdresses[uuid]
         self._unicastHandler.sendMessage(ipAdress, command+':'+data)
     
-<<<<<<< Updated upstream
     def sendTcpMessageTo(self, uuid:str, command:str, data:str=''):
         ipAdress = self.ipAdresses[uuid]
         self._tcpUnicastHandler.sendMessage(ipAdress, command+':'+data)
 
-=======
->>>>>>> Stashed changes
     def multicastReliable(self, command:str, data:str=''):
         pass
     
@@ -129,45 +126,22 @@ class Middleware():
                 # initiateVoting
                 self.initiateVoting(self)
 
-    def initiateVoting(self, messengerUUID:str, command:str, data:str):
-        # Broadcast Election Message to higher UUID Processes
-        self.broadcastToAll(self, 'initiateVoting', self.MY_UUID);
-        # wait a second
-        sleep(1)
-        # if answer new voting
-        if command == 'newVoting':
-            print('Another Node announced a new voting')
-            # if Sender UUID is bigger then mine
-            if data > self.MY_UUID:
-                # do nothing
-                print('The other Node has an higher UUID')
-            # if Sender UUID is smaller then mine
-            if data < self.MY_UUID:
-                # initiateVoting
-                self.initiateVoting(self)
-                return
-        else:
-            return
-        self.broadcastToAll(self, 'iAmNewSimon', self.MY_UUID);
-        # wait a second
-        sleep(1)
-        # if answer new voting
-        if command == 'newVoting':
-            print('Another Node announced a new voting')
-            # if Sender UUID is bigger then mine
-            if data > self.MY_UUID:
-                # do nothing
-                print('The other Node has an higher UUID')
-                return
-            # if Sender UUID is smaller then mine
-            if data < self.MY_UUID:
-                # initiateVoting
-                self.initiateVoting(self)
-                return
-        else:
-            # start a new Game as Simon
-            print('I am Simon now')
-
+    def initiateVoting(self): 
+        # send to lowerNeighbour: voting with my UUID 
+        command = 'voting' 
+        data = self.MY_UUID 
+        print('\nStarted new Voting!') 
+        print('\nsend voting command with my UUID (' + self.MY_UUID + ') to lowerNeighbour') 
+        self.sendMessageTo(self.findLowerNeighbour(), command, data) 
+ 
+ 
+    def findLowerNeighbour(self): 
+        ordered = sorted(self.ipAdresses.keys()) 
+        ownIndex = ordered.index(self.MY_UUID) 
+        neighbourUUID = ordered[ownIndex - 1] 
+        print('Neighbour: ' + neighbourUUID) 
+        return neighbourUUID 
+        # send to next higher node we start a voting with my UUID 
 class UnicastHandler():
     _serverPort = 0 # later changed in the init, it is here to define it as a class variable, so that it is accessable easyly 
 

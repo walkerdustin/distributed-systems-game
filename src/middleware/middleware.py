@@ -105,43 +105,44 @@ class Middleware():
                 #                 uuid           ipadress           port of the unicastListener
 
     def _checkForVotingAnnouncement(self, messengerUUID:str, command:str, data:str):
-        if command == 'newVoting':
-            print('Another Node announced a new voting')
-            # if Sender UUID is bigger then mine
-            if data > self.MY_UUID:
-                # do nothing
-                print('The other Node has an higher UUID')
-            # if Sender UUID is smaller then mine
-            if data < self.MY_UUID:
-                # initiateVoting
-                self.initiateVoting(self)
-        if command == 'iAmNewSimon':
-            print('Another Node announced he is the new Simon')
-            # if Sender UUID is bigger then mine
-            if data > self.MY_UUID:
-                # do nothing
-                print('The other Node has an higher UUID')
-            # if Sender UUID is smaller then mine
-            if data < self.MY_UUID:
-                # initiateVoting
-                self.initiateVoting(self)
+        if command == 'voting':
+            # if same UUID
+            if data == self.MY_UUID:
+                # i'm Simon
+                print('\nI am the new Simon')
+            # if smaller UUID
+            elif data < self.MY_UUID:
+                # send my UUID to neighbour
+                command = 'voting'
+                data = self.MY_UUID
+                print('\nsend voting command with my UUID (' + self.MY_UUID + ') to lowerNeighbour')
 
-    def initiateVoting(self): 
-        # send to lowerNeighbour: voting with my UUID 
-        command = 'voting' 
-        data = self.MY_UUID 
-        print('\nStarted new Voting!') 
-        print('\nsend voting command with my UUID (' + self.MY_UUID + ') to lowerNeighbour') 
-        self.sendMessageTo(self.findLowerNeighbour(), command, data) 
- 
- 
-    def findLowerNeighbour(self): 
-        ordered = sorted(self.ipAdresses.keys()) 
-        ownIndex = ordered.index(self.MY_UUID) 
-        neighbourUUID = ordered[ownIndex - 1] 
-        print('Neighbour: ' + neighbourUUID) 
-        return neighbourUUID 
-        # send to next higher node we start a voting with my UUID 
+                self.sendMessageTo(self.findLowerNeighbour(), command, data)
+            # if greater UUID
+            elif data > self.MY_UUID:
+                # send received UUID to neighbour
+                command = 'voting'
+                print('\nsend voting command with recevied UUID (' + data + ') to lowerNeighbour')
+                self.sendMessageTo(self.findLowerNeighbour(), command, data)
+
+    # diese Funktion muss aufgerufen werden um ein neues Voting zu starten
+    def initiateVoting(self):
+        # send to lowerNeighbour: voting with my UUID
+        command = 'voting'
+        data = self.MY_UUID
+        print('\nStarted new Voting!')
+        print('\nsend voting command with my UUID (' + self.MY_UUID + ') to lowerNeighbour')
+        self.sendMessageTo(self.findLowerNeighbour(), command, data)
+
+    def findLowerNeighbour(self):
+        ordered = sorted(self.ipAdresses.keys())
+        ownIndex = ordered.index(self.MY_UUID)
+
+        neighbourUUID = ordered[ownIndex - 1]
+        print('Neighbour: ' + neighbourUUID)
+        return neighbourUUID
+        # send to next higher node we start a voting with my UUID
+
 class UnicastHandler():
     _serverPort = 0 # later changed in the init, it is here to define it as a class variable, so that it is accessable easyly 
 

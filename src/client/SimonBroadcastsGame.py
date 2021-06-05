@@ -138,6 +138,7 @@ class Statemachine(): # there should be only one Instance of this class
             #     self.switchStateTo("simon_startNewRound")
             # if data: # if I got a response
             #     self.switchStateTo("player_waitGameStart")
+            #self.middleware._tcpUnicastHandler.se
             pass
         tempState.run = state_Lobby_f
         ############################################## Voting
@@ -208,8 +209,8 @@ class Statemachine(): # there should be only one Instance of this class
             message (str): message looks like this: PlayerList:e54aaddc-54fa-4484-a834-b56f10d55e65,p1,0#
             messengerUUID (str, optional): [description]. Defaults to None.
         """
-        #PlayerList:e54aaddc-54fa-4484-a834-b56f10d55e65,p1,0#
         if command == 'PlayerList':
+            #PlayerList:e54aaddc-54fa-4484-a834-b56f10d55e65,p1,0#
             playersList = data
             self.players.updateList(playersList)
         
@@ -240,5 +241,5 @@ if __name__ == '__main__':
     while True:
         SM.runLoop()
         usleep(1) # put a sleep in the loop to not stress the cpu to much
-        # with this sleep there is 0% cpu usage instead of 30%
+        # with this 1 micro second sleep there is 0% cpu usage instead of 30%
         

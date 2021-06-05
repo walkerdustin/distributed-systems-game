@@ -54,7 +54,7 @@ class Middleware():
         self.neighborAlive = False
         if not self.neighborUUID:
             # we don't have a neighbor --> find one
-            self.neighborUUID = lib.heartBeat.findNeighbor(Middleware.MY_UUID, PlayersList)
+            self.neighborUUID = lib.heartBeat.findNeighbor(Middleware.MY_UUID, self.ipAdresses)
         else:
             # we have a neighbor --> ping it
             self.sendMessageTo(self.neighborUUID, 'hb_ping', Middleware.MY_UUID)
@@ -66,18 +66,18 @@ class Middleware():
             # TODO check if neighbor is leader
             # TODO initiate voting
 
-    def _listenHeartbeats(self, command:str, uuid:str):
+    def _listenHeartbeats(self, messengeruuid:str, command:str, data:str):
         if command == 'hb_ping':
             # respond with alive answer
-            self.sendMessageTo(uuid, 'hb_response')
-        if command == 'hb_response':
+            self.sendMessageTo(messengeruuid, 'hb_response')
+        elif command == 'hb_response':
             # set flag alive
-            self.neighborAlive = True
-        if command == 'lostplayer':
+            if data == self.neighborUUID:
+                self.neighborAlive = True
+        elif command == 'lostplayer':
             # TODO: update own player list
-            if uuid == self.neighborUUID:
-                lib.heartBeat.findNeighbor(Middleware.MY_UUID,PlayersList)
-        
+            if data == self.neighborUUID:
+                lib.heartBeat.findNeighbor(Middleware.MY_UUID, self.ipAdresses)      
 
 
     @classmethod

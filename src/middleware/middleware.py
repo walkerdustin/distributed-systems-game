@@ -11,9 +11,11 @@ import threading
 import socket
 import ipaddress
 from time import sleep
+from client.Player import PlayersList
 usleep = lambda x: sleep(x/1000_000.0) # sleep for x microseconds
 
 from lib.myQueue import Q
+import lib.heartBeat
 
 ######################################### PARAMETER Constants
 BROADCAST_PORT = 61424
@@ -31,12 +33,52 @@ class Middleware():
     _holdBackQueue = Q()
     ipAdresses = {} # {uuid: (ipadress, port)} (str , int)
     MY_UUID = '' # later changed in the init, it is here to define it as a class variable, so that it is accessable easyly 
+    neighborUUID = None
+    neighborAlive = False
     
     def __init__(self,UUID):
         Middleware.MY_UUID = UUID  
         self._broadcastHandler = BroadcastHandler()
         self._unicastHandler = UnicastHandler()
-        self._unicastHandler.subscribeUnicastListener(self._updateAdresses)
+        self._unicastHandler.subscribeUnicastListener(self._updateAdresses)        
+
+        # Create Thread to send heartbeat
+        self.sendHB = threading.Thread(target=self._sendHeartbeats)
+        self.sendHB.start()
+        self.neighborUUID = None
+        self.neighborAlive = False
+        # Subscribe to unicastlistener
+        self._unicastHandler.subscribeUnicastListener(self._listenHeartbeats)        
+
+    def _sendHeartbeats(self):
+        self.neighborAlive = False
+        if not self.neighborUUID:
+            # we don't have a neighbor --> find one
+            self.neighborUUID = lib.heartBeat.findNeighbor(Middleware.MY_UUID, PlayersList)
+        else:
+            # we have a neighbor --> ping it
+            self.sendMessageTo(self.neighborUUID, 'hb_ping', Middleware.MY_UUID)
+        sleep(1)
+        if not self.neighborAlive:
+            self.broadcastToAll(self, 'lostplayer', self.neighborUUID)
+            self.neighbor = None
+            # TODO update own group view
+            # TODO check if neighbor is leader
+            # TODO initiate voting
+
+    def _listenHeartbeats(self, command:str, uuid:str):
+        if command == 'hb_ping':
+            # respond with alive answer
+            self.sendMessageTo(uuid, 'hb_response')
+        if command == 'hb_response':
+            # set flag alive
+            self.neighborAlive = True
+        if command == 'lostplayer':
+            # TODO: update own player list
+            if uuid == self.neighborUUID:
+                lib.heartBeat.findNeighbor(Middleware.MY_UUID,PlayersList)
+        
+
 
     @classmethod
     def addIpAdress(cls, uuid, addr):
@@ -85,7 +127,6 @@ class Middleware():
                 addrlist = addr.split(',')
                 self.addIpAdress(addrlist[0], (addrlist[1], int(addrlist[2])))
                 #                 uuid           ipadress           port of the unicastListener
-
 
 class UnicastHandler():
     _serverPort = 0 # later changed in the init, it is here to define it as a class variable, so that it is accessable easyly 

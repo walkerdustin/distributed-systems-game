@@ -29,7 +29,7 @@ usleep = lambda x: sleep(x/1000_000.0) # sleep for x microseconds
 from middleware.middleware import Middleware
 import time
 from client.Player import PlayersList
-from client.heartBeat import HeartBeat
+import lib.heartBeat
 
 
 ######################################  CONSTANTS
@@ -74,7 +74,6 @@ class Statemachine(): # there should be only one Instance of this class
     middleware = Middleware(UUID)
     playerName = ''
     gameRoomPort = 61424
-    heartbeat = HeartBeat()
 
     #players = [] # uuid s of all active players
 
@@ -139,13 +138,6 @@ class Statemachine(): # there should be only one Instance of this class
             # State Actions
             usleep(100) # put a sleep in the loop to not stress the cpu to much
 
-            # keep looking for neighbors if we haven't found both yet
-            if len(HeartBeat.neighborHosts) < 2:
-                HeartBeat.findNeighbor(self.heartbeat, self.UUID, self.players)
-
-            # if we have at least one neighbor, ping them
-            if len(HeartBeat.neighborHosts) > 0:
-                HeartBeat.sendHeartBeat(self.heartbeat)
 
             # data = self.broadcastHandler.incommingBroadcastQ.pop()
             # if time.time_ns() + WAIT__MILLISECONDS_FOR_ANSWER * 1_000_000 > self.StartWaitingTime:
@@ -226,6 +218,9 @@ class Statemachine(): # there should be only one Instance of this class
         if command == 'PlayerList':
             playersList = data
             self.players.updateList(playersList)
+
+            # neighbor situation might change --> everyone needs to reevalute who's their neighbor
+            self.middleware.neighborUUID = lib.heartBeat.findNeighbor(self.UUID, playersList)
         
 
     def respondWithPlayerList(self, messengerUUID:str, command:str, data:str):

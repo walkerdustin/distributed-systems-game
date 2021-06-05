@@ -132,7 +132,7 @@ class Statemachine(): # there should be only one Instance of this class
         ##########
         def state_Lobby_f():
             # State Actions
-            usleep(100) # put a sleep in the loop to not stress the cpu to much
+            
             # data = self.broadcastHandler.incommingBroadcastQ.pop()
             # if time.time_ns() + WAIT__MILLISECONDS_FOR_ANSWER * 1_000_000 > self.StartWaitingTime:
             #     self.switchStateTo("simon_startNewRound")
@@ -241,3 +241,6 @@ if __name__ == '__main__':
     SM = Statemachine()
     while True:
         SM.runLoop()
+        usleep(1) # put a sleep in the loop to not stress the cpu to much
+        # with this sleep there is 0% cpu usage instead of 30%
+        

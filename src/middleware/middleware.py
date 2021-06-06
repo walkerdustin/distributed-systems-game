@@ -6,14 +6,14 @@ There shall be one socket in one seperate thread (multithreading)
 for every tcp connections
 also one socket in a thread for the udp socket for broadcast
 """
-
+import uuid
 import threading
 import socket
 import ipaddress
 from time import sleep
 usleep = lambda x: sleep(x/1000_000.0) # sleep for x microseconds
 
-from lib.myQueue import Q
+from lib.lib import HoldBackQ, OrderedMessage
 
 ######################################### PARAMETER Constants
 BROADCAST_PORT = 61424
@@ -28,8 +28,8 @@ BROADCAST_IP = net.broadcast_address.exploded
 
 
 class Middleware():
-    deliveryQueue = Q()
-    _holdBackQueue = Q()
+    #deliveryQueue = Q()
+    
     ipAdresses = {} # {uuid: (ipadress, port)} (str , int)
     MY_UUID = '' # later changed in the init, it is here to define it as a class variable, so that it is accessable easyly 
     leaderUUID = ''
@@ -55,8 +55,13 @@ class Middleware():
         self.subscribeUnicastListener(self._listenHeartbeats)
         # Subscribe heartbeat lost player handler to tcp unicastlistener
         self.subscribeTCPUnicastListener(self._listenLostPlayer)
-        self.sequenceNumber = 0 # sequence Number for Total Ordering (ISIS Algorithm)
+
         self._orderedReliableMulticast_ListenerList = []
+        self.highestAgreedSequenceNumber = 0 # sequence Number for Total Ordering (ISIS Algorithm)
+        self.highestbySelfProposedSeqNumber = 0
+        self.subscribeTCPUnicastListener(self._responseFor_requestSequenceNumberForMessage)
+
+        self._holdBackQueue = HoldBackQ()
 
     # INFO: This works
     def findNeighbor(self, ownUUID, ipaddresses):
@@ -133,6 +138,9 @@ class Middleware():
     def sendTcpMessageTo(self, uuid:str, command:str, data:str=''):
         addr = Middleware.ipAdresses[uuid]
         self._tcpUnicastHandler.sendMessage(addr, command+':'+data)
+    
+    def sendTcpRequestTo(self, uuid:str, command:str, data:str=''):
+        pass
 
     def multicastReliable(self, command:str, data:str=''):
         message = command+':'+data
@@ -140,23 +148,74 @@ class Middleware():
             if key != Middleware.MY_UUID:
                 self._tcpUnicastHandler.sendMessage(addr, message)
 
-    def multicastOrderedReliable(self, command:str, data:str=''):
+    def multicastOrderedReliable(self, command:str, message:str):
         """multicast using tcp 
         ordered with Total Ordering using the ISIS algorithm
-        https://cse.buffalo.edu/~stevko/courses/cse486/spring19/lectures/12-multicast2.pdf
-        https://cse.buffalo.edu/~stevko/courses/cse486/spring19/lectures/11-multicast1.pdf
-
-        # multicast message request to all
-        # listen for proposed sequence number for this message (add tcpUnicastListener with unique command)
-        # when I have all 
-
-
 
         Args:
             command (str): [description]
             data (str, optional): [description]. Defaults to ''.
         """
-        pass
+        # https://cse.buffalo.edu/~stevko/courses/cse486/spring19/lectures/12-multicast2.pdf
+        # https://cse.buffalo.edu/~stevko/courses/cse486/spring19/lectures/11-multicast1.pdf
+
+        """ • Sender multicasts message to everyone
+            • Reply with proposed priority (sequence no.)
+                – Larger than all observed agreed priorities
+                – Larger than any previously proposed (by self) priority
+            • Store message in priority queue – Ordered by priority (proposed or agreed)
+                – Mark message as undeliverable
+            • Sender chooses agreed priority, re-multicasts message with agreed priority
+                – Maximum of all proposed priorities
+            • Upon receiving agreed (final) priority
+                – Mark message as deliverable
+                – Reorder the delivery queue based on the priorities
+                – Deliver any deliverable messages at the front of priority queue
+        """
+
+        messageID = str(uuid.uuid4())        
+
+        proposedSeqNumbers = []
+        threadsList = []
+        # make concurrent (multithreaded requests)
+        for key, addr in Middleware.ipAdresses.items():
+            if key != Middleware.MY_UUID:
+                t = threading.Thread(target = self._requestSeqNum, args = (addr,messageID, proposedSeqNumbers))
+                t.start()
+                threadsList.append(t)
+        # wait for the requests to finish
+        for t in threadsList:
+            t.join()
+
+        proposedSeqNumbers.append(self.highestAgreedSequenceNumber)
+        highestN = max(proposedSeqNumbers)
+        self.highestAgreedSequenceNumber = max(highestN, self.highestAgreedSequenceNumber)
+        self.multicastReliable('OrderedMulticast with agreed SeqNum', command+'$'+message+'$'+str(highestN))
+
+    def _requestSeqNum(self, addr,messageID, returnsList:list):
+        command = 'requestSequenceNumberForMessage'
+        returnsList.append (int( self._tcpUnicastHandler.sendTcpRequestTo(addr,'requestSequenceNumberForMessage'+':'+messageID) ))
+
+    # self.subscribeTCPUnicastListener(self._responseFor_requestSequenceNumberForMessage) in middleware.__init__
+    def _responseFor_requestSequenceNumberForMessage(self, messengerUUID:str, clientsocket:socket.socket, command:str, messageID:str):
+        if command == 'requestSequenceNumberForMessage':
+            proposedSeqNum = max(self.highestbySelfProposedSeqNumber, self.highestAgreedSequenceNumber) +1
+            self.highestbySelfProposedSeqNumber = proposedSeqNum
+            clientsocket.send(str.encode(str(proposedSeqNum) ) )
+        # socket gets closed after this returns
+    
+    # self.subscribeTCPUnicastListener(self._responseFor_requestSequenceNumberForMessage) in middleware.__init__
+    def _acceptOrderedMulticast(self, messengerUUID:str, clientsocket:socket.socket, command:str, data:str):
+        if command == 'OrderedMulticast with agreed SeqNum':
+            data = data.split('$')
+            assert len(data) == 3, 'something went wrong with the spliting of the the data'
+            messageCommand = data[0]
+            messageData = data[1]
+            messageSeqNum = data[2]
+
+            self._holdBackQueue.append(OrderedMessage())
+
+
 
     def sendIPAdressesto(self,uuid):
         command='updateIpAdresses'
@@ -182,13 +241,13 @@ class Middleware():
     def subscribeTCPUnicastListener(self, observer_func):
         """observer_func gets called every time this programm recieves a Unicast message
         Args:
-            observer_func ([type]): observer_function needs to have observer_func(messengerUUID:str, clientsocket:socket.socket, command:str, data:str) 
+            observer_func ([type]): observer_function needs to have observer_func(self, messengerUUID:str, clientsocket:socket.socket, command:str, data:str) 
         """
         self._tcpUnicastHandler.subscribeTCPUnicastListener(observer_func)
     def subscribeOrderedDeliveryQ(self, observer_func):
         """observer_func gets called every time this a new message gets queued in the delivery queue
         Args:
-            observer_func ([type]): observer_function needs to have observer_func(messengerUUID:str, command:str, data:str) 
+            observer_func ([type]): observer_function needs to have observer_func(self, messengerUUID:str, command:str, data:str) 
         """
         self._orderedReliableMulticast_ListenerList.append(observer_func)
     def _updateAdresses(self, messengerUUID:str, command:str, data:str):
@@ -331,20 +390,23 @@ class TCPUnicastHandler():
 
     
     def sendMessage(self, addr: tuple, message:str): # open new connection; send message and close immediately
-        self.sendSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # AF_INET means that this socket Internet Protocol v4 addresses
-        self.sendSocket.bind(('', 0))
+        threading.Thread(target = self._sendMessageThread, args = (addr,message)).start()
+
+    def _sendMessageThread(self, addr: tuple, message:str):
+        sendSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # AF_INET means that this socket Internet Protocol v4 addresses
+        sendSocket.bind(('', 0))
 
         print('\n\naddr for connect:   ', addr)
         try:
-            self.sendSocket.connect(addr)
+            sendSocket.connect(addr)
             messageBytes = str.encode(Middleware.MY_UUID + '_'+IP_ADRESS_OF_THIS_PC + '_'+str(UnicastHandler._serverPort)+'_'+message)
-            self.sendSocket.send(messageBytes)
+            sendSocket.send(messageBytes)
             print('TCPUnicastHandler: sent message: ', message,"\n\tto: ", addr)
         except ConnectionRefusedError:
             print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  ERROR')
             print('Process on address ', addr, 'is not responding')
         finally:
-            self.sendSocket.close() # Further sends are disallowed
+            sendSocket.close() # Further sends are disallowed
         
         
         # ##### send data in chunks
@@ -355,6 +417,27 @@ class TCPUnicastHandler():
         #         raise RuntimeError("socket connection broken")
         #     totalsent = totalsent + sent
         # ##### send data in chunks
+    
+    def sendTcpRequestTo(self, addr:tuple, message:str):
+        # this is blocking
+        sendSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # AF_INET means that this socket Internet Protocol v4 addresses
+        sendSocket.bind(('', 0))
+        response = None
+        try:
+            sendSocket.connect(addr)
+            messageBytes = str.encode(Middleware.MY_UUID + '_'+IP_ADRESS_OF_THIS_PC + '_'+str(UnicastHandler._serverPort)+'_'+message)
+            sendSocket.send(messageBytes)
+            print('TCPUnicastHandler: sent message: ', message,"\n\tto: ", addr)
+            response = sendSocket.recv(BUFFER_SIZE).decode('utf-8')
+            print('TCPUnicastHandler: got response: ', response,"\n\tfrom: ", addr)
+        except ConnectionRefusedError:
+            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  ERROR')
+            print('Process on address ', addr, 'is not connecting')
+        finally:
+            sendSocket.close() # close this socket
+        return response
+
+
 
     def _listenTCPUnicast(self):
         print("listenTCP Unicast Thread has started and not blocked Progress (by running in the background)")
@@ -411,7 +494,7 @@ class TCPUnicastHandler():
 
 class BroadcastHandler():
     def __init__(self):
-        self.incommingBroadcastQ = Q()
+        #self.incommingBroadcastQ = Q ()
         self.incommingBroadcastHistory = []
         self._listenerList = []
 

@@ -165,14 +165,18 @@ class Statemachine(): # there should be only one Instance of this class
         ############################################## startNewRound
         tempState = self.State("simon_startNewRound")
         def state_simon_startNewRound_f():
-            print("Wait for User to input string of chars.")
-            print("Multicast string of chars to others.")
+            # Simon starts a new round by declaring a new string
+            rawInput = input("What do you want to Multicast?")
+            # and reliably multicast it to all players
+            self.middleware.multicastReliable('startNewRound', rawInput)
+            print('multicastet: "' + rawInput + '" to all players')
             Statemachine.switchStateTo("simon_waitForResponses")
         tempState.run = state_simon_startNewRound_f
         ############################################## waitForResponses
         tempState = self.State("simon_waitForResponses")
         def state_simon_waitForResponses_f():
-            print("Wait for other peer's game round input responses with t/o.")
+            print("Wait 30 seconds for other peer's game round input responses with t/o.")
+            self.middleware.subscribeUnicastListener(self.listenForPlayersList)
             # if allPeersResponded or timeoutReached:
             #     print("Evaluate the winner if everyone responded OR timeout reached.")
             #     print("Multicast to every round participant the updated scoreboard.")

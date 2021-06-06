@@ -63,8 +63,10 @@ class Middleware():
         self._tcpUnicastHandler.sendMessage(addr, command+':'+data)
 
     def multicastReliable(self, command:str, data:str=''):
-        for addr in Middleware.ipAdresses.items():
-            self._tcpUnicastHandler.sendMessage(addr, command+':'+data)
+        message = command+':'+data
+        for key, addr in Middleware.ipAdresses.items():
+            if key != Middleware.MY_UUID:
+                self._tcpUnicastHandler.sendMessage(addr, message)
 
     def multicastOrderedReliable(self, command:str, data:str=''):
         pass
@@ -234,10 +236,18 @@ class TCPUnicastHandler():
         self.sendSocket.bind(('', 0))
 
         print('\n\naddr for connect:   ', addr)
-        self.sendSocket.connect(addr)
+        try:
+            self.sendSocket.connect(addr)
+            messageBytes = str.encode(Middleware.MY_UUID + '_'+IP_ADRESS_OF_THIS_PC + '_'+str(UnicastHandler._serverPort)+'_'+message)
+            self.sendSocket.send(messageBytes)
+            print('TCPUnicastHandler: sent message: ', message,"\n\tto: ", addr)
+        except ConnectionRefusedError:
+            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  ERROR')
+            print('Process on address ', addr, 'is not responding')
+        finally:
+            self.sendSocket.close() # Further sends are disallowed
         
-        messageBytes = str.encode(Middleware.MY_UUID + '_'+IP_ADRESS_OF_THIS_PC + '_'+str(UnicastHandler._serverPort)+'_'+message)
-        self.sendSocket.send(messageBytes)
+        
         # ##### send data in chunks
         # totalsent = 0
         # while totalsent < MSGLEN:
@@ -246,8 +256,6 @@ class TCPUnicastHandler():
         #         raise RuntimeError("socket connection broken")
         #     totalsent = totalsent + sent
         # ##### send data in chunks
-        self.sendSocket.close() # Further sends are disallowed
-        print('TCPUnicastHandler: sent message: ', message,"\n\tto: ", addr)
 
     def _listenTCPUnicast(self):
         print("listenTCP Unicast Thread has started and not blocked Progress (by running in the background)")

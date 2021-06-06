@@ -142,6 +142,7 @@ class Statemachine(): # there should be only one Instance of this class
             #     self.switchStateTo("player_waitGameStart")
             # sleep(2)
             # self.middleware.sendTcpMessageTo('cda8bc89-6d6c-4d44-a41f-3fb03b97c732', 'command asdf', 'data asdf')
+            # self.middleware.multicastReliable('command asdf', 'data asdf')
             pass
         tempState.run = state_Lobby_f
         ############################################## Voting

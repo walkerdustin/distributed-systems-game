@@ -116,6 +116,8 @@ class Middleware():
                 print('\nI am the new Simon')
                 # reliably multicast my UUID to all players
                 self.multicastReliable('leaderElected', self.MY_UUID)
+                # set leaderUUID as my UUID
+                Middleware.leaderUUID = data
                 # set GameState to simon_startNewRound
                 self.statemashine.switchStateTo('simon_startNewRound')
             # if smaller UUID

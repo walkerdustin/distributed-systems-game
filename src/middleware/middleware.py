@@ -112,7 +112,7 @@ class Middleware():
                 #print(messengeruuid)
                 Middleware.neighborAlive = True
 
-    def _listenLostPlayer(messengerUUID:str, clientsocket:socket.socket, command:str, data:str):
+    def _listenLostPlayer(self, messengerUUID:str, clientsocket:socket.socket, command:str, data:str):
         if command == 'lostplayer':           
         #    # remove the lost host from the list and look for new neighbor
             Middleware.ipAdresses.pop(data, None)            

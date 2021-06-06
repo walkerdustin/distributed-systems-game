@@ -37,6 +37,7 @@ class Middleware():
     neighborUUID = None
     neighborAlive = False
 
+
     def __init__(self,UUID, statemashine):
         Middleware.MY_UUID = UUID 
         self.statemashine =  statemashine
@@ -54,6 +55,8 @@ class Middleware():
         self.subscribeUnicastListener(self._listenHeartbeats)
         # Subscribe heartbeat lost player handler to tcp unicastlistener
         self.subscribeTCPUnicastListener(self._listenLostPlayer)
+        self.sequenceNumber = 0 # sequence Number for Total Ordering (ISIS Algorithm)
+        self._orderedReliableMulticast_ListenerList = []
 
     # INFO: This works
     def findNeighbor(self, ownUUID, ipaddresses):
@@ -138,6 +141,21 @@ class Middleware():
                 self._tcpUnicastHandler.sendMessage(addr, message)
 
     def multicastOrderedReliable(self, command:str, data:str=''):
+        """multicast using tcp 
+        ordered with Total Ordering using the ISIS algorithm
+        https://cse.buffalo.edu/~stevko/courses/cse486/spring19/lectures/12-multicast2.pdf
+        https://cse.buffalo.edu/~stevko/courses/cse486/spring19/lectures/11-multicast1.pdf
+
+        # multicast message request to all
+        # listen for proposed sequence number for this message (add tcpUnicastListener with unique command)
+        # when I have all 
+
+
+
+        Args:
+            command (str): [description]
+            data (str, optional): [description]. Defaults to ''.
+        """
         pass
 
     def sendIPAdressesto(self,uuid):
@@ -161,13 +179,18 @@ class Middleware():
             observer_func ([type]): observer_function needs to have func(self, messengerUUID:str, command:str, data:str)
         """
         self._unicastHandler.subscribeUnicastListener(observer_func)
-    
     def subscribeTCPUnicastListener(self, observer_func):
         """observer_func gets called every time this programm recieves a Unicast message
         Args:
             observer_func ([type]): observer_function needs to have observer_func(messengerUUID:str, clientsocket:socket.socket, command:str, data:str) 
         """
         self._tcpUnicastHandler.subscribeTCPUnicastListener(observer_func)
+    def subscribeOrderedDeliveryQ(self, observer_func):
+        """observer_func gets called every time this a new message gets queued in the delivery queue
+        Args:
+            observer_func ([type]): observer_function needs to have observer_func(messengerUUID:str, command:str, data:str) 
+        """
+        self._orderedReliableMulticast_ListenerList.append(observer_func)
     def _updateAdresses(self, messengerUUID:str, command:str, data:str):
         """_updateAdresses recieves and decodes the IPAdresses List from the function 
         sendIPAdressesto(self,uuid)

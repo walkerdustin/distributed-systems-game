@@ -55,20 +55,26 @@ class Middleware():
         self._broadcastHandler.broadcast(command+':'+data)
     
     def sendMessageTo(self, uuid:str, command:str, data:str=''): # unicast
-        ipAdress = self.ipAdresses[uuid]
+        ipAdress = Middleware.ipAdresses[uuid]
         self._unicastHandler.sendMessage(ipAdress, command+':'+data)
     
     def sendTcpMessageTo(self, uuid:str, command:str, data:str=''):
-        ipAdress = self.ipAdresses[uuid]
-        self._tcpUnicastHandler.sendMessage(ipAdress, command+':'+data)
+        addr = Middleware.ipAdresses[uuid]
+        self._tcpUnicastHandler.sendMessage(addr, command+':'+data)
 
     def multicastReliable(self, command:str, data:str=''):
+        message = command+':'+data
+        for key, addr in Middleware.ipAdresses.items():
+            if key != Middleware.MY_UUID:
+                self._tcpUnicastHandler.sendMessage(addr, message)
+
+    def multicastOrderedReliable(self, command:str, data:str=''):
         pass
-    
+
     def sendIPAdressesto(self,uuid):
         command='updateIpAdresses'
         s=''
-        for uuid, (addr,port) in self.ipAdresses.items():
+        for uuid, (addr,port) in Middleware.ipAdresses.items():
             s += uuid+','+str(addr)+','+str(port)+'#'
         self.sendMessageTo(uuid,command,s)
 
@@ -227,19 +233,31 @@ class TCPUnicastHandler():
         self._listen_UDP_Unicast_Thread.start()
 
     
-    def sendMessage(self, addr: tuple, message:str): # open new connection
-        self._server_socket.connect(addr)
-        self._server_socket.sendto(str.encode(Middleware.MY_UUID + '_'+IP_ADRESS_OF_THIS_PC + '_'+str(UnicastHandler._serverPort)+'_'+message), addr)
-        print('TCPUnicastHandler: sent message: ', message,"\n\tto: ", addr)
-        messageBytes = str.encode(Middleware.MY_UUID + '_'+IP_ADRESS_OF_THIS_PC + '_'+str(UnicastHandler._serverPort)+'_'+message)
-        ##### send data in chunks
-        totalsent = 0
-        while totalsent < MSGLEN:
-            sent = self._server_socket.send(messageBytes[totalsent:])
-            if sent == 0:
-                raise RuntimeError("socket connection broken")
-            totalsent = totalsent + sent
-        ##### send data in chunks
+    def sendMessage(self, addr: tuple, message:str): # open new connection; send message and close immediately
+        self.sendSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # AF_INET means that this socket Internet Protocol v4 addresses
+        self.sendSocket.bind(('', 0))
+
+        print('\n\naddr for connect:   ', addr)
+        try:
+            self.sendSocket.connect(addr)
+            messageBytes = str.encode(Middleware.MY_UUID + '_'+IP_ADRESS_OF_THIS_PC + '_'+str(UnicastHandler._serverPort)+'_'+message)
+            self.sendSocket.send(messageBytes)
+            print('TCPUnicastHandler: sent message: ', message,"\n\tto: ", addr)
+        except ConnectionRefusedError:
+            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  ERROR')
+            print('Process on address ', addr, 'is not responding')
+        finally:
+            self.sendSocket.close() # Further sends are disallowed
+        
+        
+        # ##### send data in chunks
+        # totalsent = 0
+        # while totalsent < MSGLEN:
+        #     sent = self.sendSocket.send(messageBytes[totalsent:])
+        #     if sent == 0:
+        #         raise RuntimeError("socket connection broken")
+        #     totalsent = totalsent + sent
+        # ##### send data in chunks
 
     def _listenTCPUnicast(self):
         print("listenTCP Unicast Thread has started and not blocked Progress (by running in the background)")
@@ -252,24 +270,24 @@ class TCPUnicastHandler():
             clientsocket.settimeout(60)
             # star a new thread, that is responsible for one new request from one peer.
             # in this thread, they can exchange more messages
-            threading.Thread(target = self.listenToClient, args = (clientsocket,address)).start()
+            threading.Thread(target = self._listenToClient, args = (clientsocket,address)).start()
 
 
-    def listenToClient(self, clientsocket:socket.socket, address):
+    def _listenToClient(self, clientsocket:socket.socket, address):
         print('Got tcp connection from: ', address)
-
+        data = clientsocket.recv(BUFFER_SIZE)
         ################# recieve data in chunks
-        chunks = []
-        bytes_recd = 0
-        while bytes_recd < MSGLEN:
-            chunk = clientsocket.recv(min(MSGLEN - bytes_recd, BUFFER_SIZE))
-            if chunk == b'':
-                raise RuntimeError("socket connection broken")
-            chunks.append(chunk)
-            bytes_recd = bytes_recd + len(chunk)
-        data = b''.join(chunks)
+        # chunks = []
+        # bytes_recd = 0
+        # while bytes_recd < MSGLEN:
+        #     chunk = clientsocket.recv(min(MSGLEN - bytes_recd, BUFFER_SIZE))
+        #     if chunk == b'':
+        #         raise RuntimeError("socket connection broken")
+        #     chunks.append(chunk)
+        #     bytes_recd = bytes_recd + len(chunk)
+        # data = b''.join(chunks)
+        ################# recieve data in chunks
         data = data.decode('utf-8')
-        ################# recieve data in chunks
 
         if data:
             data=data.split('_')
@@ -277,7 +295,7 @@ class TCPUnicastHandler():
             messengerIP = data[1]
             messengerPort = int(data[2])    # this should be the port where the unicast listener socket 
                                             #(of the sender of this message) is listening on
-            assert address ==  (messengerIP, messengerPort)                              
+            #assert address ==  (messengerIP, messengerPort)                              
             message=data[3]
             messageSplit= message.split(':')
             assert len(messageSplit) == 2, "There should not be a ':' in the message"

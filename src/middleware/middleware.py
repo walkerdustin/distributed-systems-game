@@ -68,7 +68,7 @@ class Middleware():
         # only to be called if we don't yet have the neighbor
         # make ordered dict - uuid remains dict key
         ordered = sorted(ipaddresses.keys())
-        if len(ordered)<0:
+        if len(ordered)>0:
             print("\nsorted uuid dict:\t")
             print(ordered)
         if ownUUID in ordered:
@@ -83,26 +83,36 @@ class Middleware():
                 return uuidList[ownIndex - 1]
 
     def _sendHeartbeats(self):
+        ctr = 0
         while True:
             Middleware.neighborAlive = False
             if not Middleware.neighborUUID:
                 # we don't yet have a neighbor --> find one
                 Middleware.neighborUUID = self.findNeighbor(Middleware.MY_UUID, Middleware.ipAdresses)
+                sleep(1)
             else:
                 # we have a neighbor --> ping it
                 self.sendMessageTo(Middleware.neighborUUID, 'hbping', Middleware.MY_UUID)
                 sleep(1)
-                if Middleware.neighborUUID and not Middleware.neighborAlive:
+                if ctr < 3 and not Middleware.neighborAlive:
+                    ctr += 1
+                elif not Middleware.neighborAlive and ctr >= 3:
+                    ctr = 0
                     # update own ipAdresses
                     Middleware.ipAdresses.pop(Middleware.neighborUUID, None)
                     # send update to everyone else
                     self.multicastReliable('lostplayer', Middleware.neighborUUID)
                     # check if neighbor is leader
                     if Middleware.neighborUUID == Middleware.leaderUUID:
-                        Middleware.initiateVoting()
+                        self.initiateVoting()
                     
                     Middleware.neighborUUID = None
-            sleep(1)
+                elif Middleware.neighborAlive:
+                    ctr = 0
+                else:
+                    #should never get here. if we do: reset neighbor and counter
+                    Middleware.neighborUUID = None
+                    ctr = 0
 
     def _listenHeartbeats(self, messengeruuid:str, command:str, data:str):
         if command == 'hbping':
@@ -127,6 +137,7 @@ class Middleware():
     @classmethod
     def addIpAdress(cls, uuid, addr):
         cls.ipAdresses[uuid] = addr
+        Middleware.neighborUUID = None
 
     def broadcastToAll(self, command:str, data:str=''):
         self._broadcastHandler.broadcast(command+':'+data)
@@ -362,7 +373,7 @@ class UnicastHandler():
                     assert len(messageSplit) == 2, "There should not be a ':' in the message"
                     messageCommand = messageSplit[0]
                     messageData = messageSplit[1]
-                    
+
                     self.incommingUnicastHistory.append((message, address))
                     for observer_func in self._listenerList:
                         observer_func(messengerUUID, messageCommand, messageData) 

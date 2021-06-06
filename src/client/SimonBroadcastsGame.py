@@ -133,6 +133,12 @@ class Statemachine(): # there should be only one Instance of this class
         tempState.entry = state_Lobby_entry
         ##########
         def state_Lobby_f():
+            # call initiateVoting after use rinput
+            # rawInput = input("want to vote? (v)")
+            # if rawInput == 'v':
+            #     self.middleware.initiateVoting()
+
+            
             # State Actions
             
             # data = self.broadcastHandler.incommingBroadcastQ.pop()

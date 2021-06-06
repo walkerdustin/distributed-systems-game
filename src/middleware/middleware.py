@@ -42,7 +42,7 @@ class Middleware():
         self._unicastHandler = UnicastHandler()
         self._tcpUnicastHandler = TCPUnicastHandler()
         self.subscribeUnicastListener(self._updateAdresses)
-        self.subscribeUnicastListener(self._checkForVotingAnnouncement)
+        self.subscribeTCPUnicastListener(self._checkForVotingAnnouncement)
 
 
 
@@ -114,7 +114,7 @@ class Middleware():
                 self.addIpAdress(addrlist[0], (addrlist[1], int(addrlist[2])))
                 #                 uuid           ipadress           port of the unicastListener
 
-    def _checkForVotingAnnouncement(self, messengerUUID:str, command:str, data:str):
+    def _checkForVotingAnnouncement(self, messengerUUID:str, clientsocket:socket.socket, command:str, data:str):
         if command == 'voting':
             # if same UUID
             if data == self.MY_UUID:
@@ -132,18 +132,18 @@ class Middleware():
                 command = 'voting'
                 data = self.MY_UUID
                 print('\nsend voting command with my UUID (' + self.MY_UUID + ') to lowerNeighbour')
-                self.sendMessageTo(self.findLowerNeighbour(), command, data)
+                self.sendTcpMessageTo(self.findLowerNeighbour(), command, data)
             # if greater UUID
             elif data > self.MY_UUID:
                 # send received UUID to neighbour
                 command = 'voting'
                 print('\nsend voting command with recevied UUID (' + data + ') to lowerNeighbour')
-                self.sendMessageTo(self.findLowerNeighbour(), command, data)
+                self.sendTcpMessageTo(self.findLowerNeighbour(), command, data)
         elif command == 'leaderElected':
             print('new Leader got elected')
             Middleware.leaderUUID = data
             # set GameState to state_player_waitGameStart_f
-            self.statemashine.switchStateTo('state_player_waitGameStart_f')
+            self.statemashine.switchStateTo('player_waitGameStart')
 
     # diese Funktion muss aufgerufen werden um ein neues Voting zu starten
     def initiateVoting(self):
@@ -152,13 +152,14 @@ class Middleware():
         data = self.MY_UUID
         print('\nStarted new Voting!')
         print('\nsend voting command with my UUID (' + self.MY_UUID + ') to lowerNeighbour')
-        self.sendMessageTo(self.findLowerNeighbour(), command, data)
+        self.sendTcpMessageTo(self.findLowerNeighbour(), command, data)
 
     def findLowerNeighbour(self):
         ordered = sorted(self.ipAdresses.keys())
         ownIndex = ordered.index(self.MY_UUID)
 
         neighbourUUID = ordered[ownIndex - 1]
+        assert self.MY_UUID != neighbourUUID, 'I am my own neigbour that shouldnt happen'
         print('Neighbour: ' + neighbourUUID)
         return neighbourUUID
         # send to next higher node we start a voting with my UUID

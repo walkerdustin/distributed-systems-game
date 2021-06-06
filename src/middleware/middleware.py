@@ -34,6 +34,8 @@ class Middleware():
     MY_UUID = '' # later changed in the init, it is here to define it as a class variable, so that it is accessable easyly 
     leaderUUID = ''
 
+    neighborUUID = None
+    neighborAlive = False
 
     def __init__(self,UUID, statemashine):
         Middleware.MY_UUID = UUID 
@@ -44,8 +46,75 @@ class Middleware():
         self.subscribeUnicastListener(self._updateAdresses)
         self.subscribeUnicastListener(self._checkForVotingAnnouncement)
 
+        # Create Thread to send heartbeat
+        self.sendHB = threading.Thread(target=self._sendHeartbeats)
+        self.sendHB.start()
+        Middleware.neighborAlive = False
+        # Subscribe heartbeat handler to udp unicastlistener
+        self.subscribeUnicastListener(self._listenHeartbeats)
+        # Subscribe heartbeat lost player handler to tcp unicastlistener
+        self.subscribeTCPUnicastListener(self._listenLostPlayer)
 
+    # INFO: This works
+    def findNeighbor(self, ownUUID, ipaddresses):
+        # only to be called if we don't yet have the neighbor
+        # make ordered dict - uuid remains dict key
+        ordered = sorted(ipaddresses.keys())
+        if len(ordered)<0:
+            print("\nsorted uuid dict:\t")
+            print(ordered)
+        if ownUUID in ordered:
+            ownIndex = ordered.index(ownUUID)
 
+            uuidList = list(ordered)
+            # add neighbor with larger uuid as neighbor
+            if uuidList[ownIndex - 1] != ownUUID:
+                # another uuid exists and it's not our own
+                print("neighbor is\t")
+                print(uuidList[ownIndex - 1])
+                return uuidList[ownIndex - 1]
+
+    def _sendHeartbeats(self):
+        while True:
+            Middleware.neighborAlive = False
+            if not Middleware.neighborUUID:
+                # we don't yet have a neighbor --> find one
+                Middleware.neighborUUID = self.findNeighbor(Middleware.MY_UUID, Middleware.ipAdresses)
+            else:
+                # we have a neighbor --> ping it
+                self.sendMessageTo(Middleware.neighborUUID, 'hbping', Middleware.MY_UUID)
+                sleep(1)
+                if Middleware.neighborUUID and not Middleware.neighborAlive:
+                    # update own ipAdresses
+                    Middleware.ipAdresses.pop(Middleware.neighborUUID, None)
+                    # send update to everyone else
+                    self.multicastReliable('lostplayer', Middleware.neighborUUID)
+                    # check if neighbor is leader
+                    if Middleware.neighborUUID == Middleware.leaderUUID:
+                        Middleware.initiateVoting()
+                    
+                    Middleware.neighborUUID = None
+            sleep(1)
+
+    def _listenHeartbeats(self, messengeruuid:str, command:str, data:str):
+        if command == 'hbping':
+            # respond with alive answer
+            #print("received ping from\t")
+            #print(messengeruuid)
+            self.sendMessageTo(messengeruuid, 'hbresponse', Middleware.MY_UUID)
+        elif command == 'hbresponse':
+            # set flag alive
+            if messengeruuid == Middleware.neighborUUID:
+                #print("received ping response from\t")
+                #print(messengeruuid)
+                Middleware.neighborAlive = True
+
+    def _listenLostPlayer(messengerUUID:str, clientsocket:socket.socket, command:str, data:str):
+        if command == 'lostplayer':           
+        #    # remove the lost host from the list and look for new neighbor
+            Middleware.ipAdresses.pop(data, None)            
+            Middleware.neighborUUID = None
+    
 
     @classmethod
     def addIpAdress(cls, uuid, addr):
@@ -192,28 +261,32 @@ class UnicastHandler():
             # Receive message from client
             # Code waits here until it recieves a unicast to its port
             # thats why this code needs to run in a different thread
-            data, address = self._server_socket.recvfrom(BUFFER_SIZE) 
-            data = data.decode('utf-8')
-            print('UnicastHandler: Received message from client: ', address)
-            print('\t\tMessage: ', data)
+            try:
+                data, address = self._server_socket.recvfrom(BUFFER_SIZE)
+                data = data.decode('utf-8')
+                print('UnicastHandler: Received message from client: ', address)
+                print('\t\tMessage: ', data)
 
-            if data:
-                data=data.split('_')
-                messengerUUID = data[0]
-                messengerIP = data[1]
-                messengerPort = int(data[2])    # this should be the port where the unicast listener socket 
-                                                #(of the sender of this message) is listening on
-                assert address ==  (messengerIP, messengerPort)                              
-                message=data[3]
-                messageSplit= message.split(':')
-                assert len(messageSplit) == 2, "There should not be a ':' in the message"
-                messageCommand = messageSplit[0]
-                messageData = messageSplit[1]
+                if data:
+                    data=data.split('_')
+                    messengerUUID = data[0]
+                    messengerIP = data[1]
+                    messengerPort = int(data[2])    # this should be the port where the unicast listener socket 
+                                                    #(of the sender of this message) is listening on
+                    assert address ==  (messengerIP, messengerPort)                              
+                    message=data[3]
+                    messageSplit= message.split(':')
+                    assert len(messageSplit) == 2, "There should not be a ':' in the message"
+                    messageCommand = messageSplit[0]
+                    messageData = messageSplit[1]
+                    
+                    self.incommingUnicastHistory.append((message, address))
+                    for observer_func in self._listenerList:
+                        observer_func(messengerUUID, messageCommand, messageData) 
+                    data[1] = None
+            except:
+                print("Connection was lost!")
 
-                self.incommingUnicastHistory.append((message, address))
-                for observer_func in self._listenerList:
-                    observer_func(messengerUUID, messageCommand, messageData) 
-               
     def subscribeUnicastListener(self, observer_func):
         self._listenerList.append(observer_func)
 

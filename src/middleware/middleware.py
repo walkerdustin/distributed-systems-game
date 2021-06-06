@@ -36,6 +36,8 @@ class Middleware():
 
     neighborUUID = None
     neighborAlive = False
+    
+    orderedReliableMulticast_ListenerList = []
 
 
     def __init__(self,UUID, statemashine):
@@ -56,7 +58,6 @@ class Middleware():
         # Subscribe heartbeat lost player handler to tcp unicastlistener
         self.subscribeTCPUnicastListener(self._listenLostPlayer)
 
-        self._orderedReliableMulticast_ListenerList = []
         self.highestAgreedSequenceNumber = 0 # sequence Number for Total Ordering (ISIS Algorithm)
         self.highestbySelfProposedSeqNumber = 0
         self.subscribeTCPUnicastListener(self._responseFor_requestSequenceNumberForMessage)
@@ -198,20 +199,21 @@ class Middleware():
         for t in threadsList:
             t.join()
 
-        proposedSeqNumbers.append(self.highestAgreedSequenceNumber)
+        proposedSeqNumbers.append(self.highestAgreedSequenceNumber+1)
         highestN = max(proposedSeqNumbers)
         self.highestAgreedSequenceNumber = max(highestN, self.highestAgreedSequenceNumber)
-        self.multicastReliable('OrderedMulticast with agreed SeqNum', command+'$'+message+'$'+str(highestN))
+        self.multicastReliable('OrderedMulticast with agreed SeqNum', command+'$'+message+'$'+str(highestN)+'$'+messageID)
 
     def _requestSeqNum(self, addr,messageID, returnsList:list):
         command = 'requestSequenceNumberForMessage'
-        returnsList.append (int( self._tcpUnicastHandler.sendTcpRequestTo(addr,'requestSequenceNumberForMessage'+':'+messageID) ))
+        returnsList.append(int( self._tcpUnicastHandler.sendTcpRequestTo(addr,'requestSequenceNumberForMessage'+':'+messageID) ))
 
     # self.subscribeTCPUnicastListener(self._responseFor_requestSequenceNumberForMessage) in middleware.__init__
     def _responseFor_requestSequenceNumberForMessage(self, messengerUUID:str, clientsocket:socket.socket, command:str, messageID:str):
         if command == 'requestSequenceNumberForMessage':
             proposedSeqNum = max(self.highestbySelfProposedSeqNumber, self.highestAgreedSequenceNumber) +1
             self.highestbySelfProposedSeqNumber = proposedSeqNum
+            self._holdBackQueue.append(OrderedMessage(proposedSeqNum, '', '', messageID, False))
             clientsocket.send(str.encode(str(proposedSeqNum) ) )
         # socket gets closed after this returns
     
@@ -223,8 +225,9 @@ class Middleware():
             messageCommand = data[0]
             messageData = data[1]
             messageSeqNum = data[2]
+            messageID = data[3]
 
-            self._holdBackQueue.append(OrderedMessage())
+            self._holdBackQueue.updateData(messageID, messageSeqNum, messageCommand, messageData)
 
 
 
@@ -255,12 +258,13 @@ class Middleware():
             observer_func ([type]): observer_function needs to have observer_func(self, messengerUUID:str, clientsocket:socket.socket, command:str, data:str) 
         """
         self._tcpUnicastHandler.subscribeTCPUnicastListener(observer_func)
-    def subscribeOrderedDeliveryQ(self, observer_func):
+    @classmethod
+    def subscribeOrderedDeliveryQ(cls, observer_func):
         """observer_func gets called every time this a new message gets queued in the delivery queue
         Args:
-            observer_func ([type]): observer_function needs to have observer_func(self, messengerUUID:str, command:str, data:str) 
+            observer_func ([type]): observer_function needs to have observer_func(self, command:str, data:str) 
         """
-        self._orderedReliableMulticast_ListenerList.append(observer_func)
+        cls.orderedReliableMulticast_ListenerList.append(observer_func)
     def _updateAdresses(self, messengerUUID:str, command:str, data:str):
         """_updateAdresses recieves and decodes the IPAdresses List from the function 
         sendIPAdressesto(self,uuid)
@@ -346,20 +350,20 @@ class UnicastHandler():
     
     def sendMessage(self, addr, message:str):
         self._server_socket.sendto(str.encode(Middleware.MY_UUID + '_'+IP_ADRESS_OF_THIS_PC + '_'+str(UnicastHandler._serverPort)+'_'+message), addr)
-        print('UnicastHandler: sent message: ', message,"\n\tto: ", addr)
+        #print('UnicastHandler: sent message: ', message,"\n\tto: ", addr)
 
     def _listenUnicast(self):
         print("listenUDP Unicast Thread has started and not blocked Progress (by running in the background)")
         while True:
-            print('\nUnicastHandler: Waiting to receive unicast message...\n')
+            #print('\nUnicastHandler: Waiting to receive unicast message...\n')
             # Receive message from client
             # Code waits here until it recieves a unicast to its port
             # thats why this code needs to run in a different thread
             try:
                 data, address = self._server_socket.recvfrom(BUFFER_SIZE)
                 data = data.decode('utf-8')
-                print('UnicastHandler: Received message from client: ', address)
-                print('\t\tMessage: ', data)
+                #print('UnicastHandler: Received message from client: ', address)
+                #print('\t\tMessage: ', data)
 
                 if data:
                     data=data.split('_')
@@ -456,8 +460,8 @@ class TCPUnicastHandler():
             #https://docs.python.org/3/howto/sockets.html
         # https://github.com/TejasTidke/Socket-Programming-TCP-Multithreading/blob/master/server/multiserver.py
         while True:
-            print('\TCPUnicastHandler: Waiting for connection...\n')
             clientsocket, address = self._server_socket.accept()
+            print("TCPUnicastHandler has accept() ed a connection")
             clientsocket.settimeout(60)
             # star a new thread, that is responsible for one new request from one peer.
             # in this thread, they can exchange more messages
@@ -465,7 +469,6 @@ class TCPUnicastHandler():
 
 
     def _listenToClient(self, clientsocket:socket.socket, address):
-        print('Got tcp connection from: ', address)
         data = clientsocket.recv(BUFFER_SIZE)
         ################# recieve data in chunks
         # chunks = []
@@ -492,7 +495,7 @@ class TCPUnicastHandler():
             assert len(messageSplit) == 2, "There should not be a ':' in the message"
             messageCommand = messageSplit[0]
             messageData = messageSplit[1]
-            print("TCP Message recieved;\nmessageCommand \t :",messageCommand, "\messageData    \t :",messageData )
+            print("TCP Message recieved;\n messageCommand \t :",messageCommand, "\n messageData    \t :",messageData )
             self.incommingUnicastHistory.append((message, address))
             for observer_func in self._listenerList:
                 observer_func(messengerUUID, clientsocket, messageCommand, messageData)

@@ -15,7 +15,6 @@ usleep = lambda x: sleep(x/1000_000.0) # sleep for x microseconds
 from dataclasses import dataclass
 
 
-#from lib.lib import HoldBackQ, OrderedMessage
 
 ######################################### PARAMETER Constants
 BROADCAST_PORT = 61424
@@ -216,7 +215,7 @@ class Middleware():
         if command == 'requestSequenceNumberForMessage':
             proposedSeqNum = max(self.highestbySelfProposedSeqNumber, self.highestAgreedSequenceNumber) +1
             self.highestbySelfProposedSeqNumber = proposedSeqNum
-            self._holdBackQueue.append(OrderedMessage(proposedSeqNum, '', '', messageID, False))
+            self._holdBackQueue.append(OrderedMessage(proposedSeqNum, '', '', messageID, messengerUUID, False))
             clientsocket.send(str.encode(str(proposedSeqNum) ) )
         # socket gets closed after this returns
     
@@ -231,7 +230,7 @@ class Middleware():
             messageID = data[3]
 
             self.highestAgreedSequenceNumber = max(self.highestAgreedSequenceNumber, messageSeqNum)
-            self._holdBackQueue.updateData(messageID, messageSeqNum, messageCommand, messageData)
+            self._holdBackQueue.updateData(messageID, messageSeqNum, messageCommand, messageData, messengerUUID)
 
 
 
@@ -266,9 +265,13 @@ class Middleware():
     def subscribeOrderedDeliveryQ(cls, observer_func):
         """observer_func gets called every time this a new message gets queued in the delivery queue
         Args:
-            observer_func ([type]): observer_function needs to have observer_func(self, command:str, data:str) 
+            observer_func ([type]): observer_function needs to have observer_func(self, messengerUUID:str, command:str, data:str) 
         """
         cls.orderedReliableMulticast_ListenerList.append(observer_func)
+    @classmethod
+    def unSubscribeOrderedDeliveryQ(cls, rmFunc):
+        cls.orderedReliableMulticast_ListenerList.remove(rmFunc)
+        
     def _updateAdresses(self, messengerUUID:str, command:str, data:str):
         """_updateAdresses recieves and decodes the IPAdresses List from the function 
         sendIPAdressesto(self,uuid)
@@ -577,6 +580,7 @@ class OrderedMessage:
     messageCommand: str
     messageData: str
     messageID:str
+    messengerUUID:str
     deliverable:bool
 
 class HoldBackQ():
@@ -593,7 +597,7 @@ class HoldBackQ():
         # 
         self.checkForDeliverables()
     
-    def updateData(self, messageID:str, messageSeqNum:int, messageCommand:str, messageData:str):
+    def updateData(self, messageID:str, messageSeqNum:int, messageCommand:str, messageData:str, messengerUUID:str):
         #find Messagewith message ID
         # set messageSeqNum
         # set messageCommand
@@ -619,7 +623,7 @@ class HoldBackQ():
         for m in sortedQ:
             if m.deliverable:
                 for observer_func in Middleware.orderedReliableMulticast_ListenerList:
-                    observer_func(m.messageCommand, m.messageData)
+                    observer_func(m.messengerUUID, m.messageCommand, m.messageData)
                 self._queue.remove(m)
 
             else:

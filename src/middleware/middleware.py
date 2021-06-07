@@ -190,6 +190,9 @@ class Middleware():
 
         messageID = str(uuid.uuid4())        
 
+        # add to own holdbackQueue
+        ownPropodesSeqNum = max(self.highestbySelfProposedSeqNumber, self.highestAgreedSequenceNumber) +1
+        self._holdBackQueue.append(OrderedMessage(ownPropodesSeqNum, '', '', messageID, Middleware.MY_UUID, False))
         proposedSeqNumbers = []
         threadsList = []
         # make concurrent (multithreaded requests)
@@ -205,6 +208,7 @@ class Middleware():
         proposedSeqNumbers.append(self.highestAgreedSequenceNumber+1)
         highestN = max(proposedSeqNumbers)
         self.highestAgreedSequenceNumber = max(highestN, self.highestAgreedSequenceNumber)
+        self._holdBackQueue.updateData(messageID, highestN, command, message)
         self.multicastReliable('OrderedMulticast with agreed SeqNum', command+'$'+message+'$'+str(highestN)+'$'+messageID)
 
     def _requestSeqNum(self, addr,messageID, returnsList:list):
@@ -231,7 +235,7 @@ class Middleware():
             messageID = data[3]
 
             self.highestAgreedSequenceNumber = max(self.highestAgreedSequenceNumber, messageSeqNum)
-            self._holdBackQueue.updateData(messageID, messageSeqNum, messageCommand, messageData, messengerUUID)
+            self._holdBackQueue.updateData(messageID, messageSeqNum, messageCommand, messageData)
 
 
 
@@ -598,7 +602,7 @@ class HoldBackQ():
         # 
         self.checkForDeliverables()
     
-    def updateData(self, messageID:str, messageSeqNum:int, messageCommand:str, messageData:str, messengerUUID:str):
+    def updateData(self, messageID:str, messageSeqNum:int, messageCommand:str, messageData:str):
         #find Messagewith message ID
         # set messageSeqNum
         # set messageCommand

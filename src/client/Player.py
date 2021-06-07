@@ -42,6 +42,6 @@ class PlayersList():
             player = player.split(',')
             uuid = player[0]
             name = player[1]
-            points = player[2]
+            points = int(player[2])
             self.addPlayer(uuid, name, points)
         self.printLobby()

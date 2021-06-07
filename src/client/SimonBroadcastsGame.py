@@ -73,6 +73,9 @@ class Statemachine(): # there should be only one Instance of this class
     gameRoomPort = 61424
     currentState = ''
 
+    simonSaysString = ''
+    playersResponses = []
+
     #players = [] # uuid s of all active players
 
     ###############################################   internal class
@@ -137,7 +140,11 @@ class Statemachine(): # there should be only one Instance of this class
             # rawInput = input("want to vote? (v)")
             # if rawInput == 'v':
             #     self.middleware.initiateVoting()
-
+            sleep(1)
+            if len(self.players.playerList) <= 1:
+                # only 1 player in list --> self 
+                self.middleware.leaderUUID = self.UUID
+                self.switchStateTo("simon_waitForPeers")
             
             # State Actions
             
@@ -149,12 +156,12 @@ class Statemachine(): # there should be only one Instance of this class
             # sleep(2)
             # self.middleware.sendTcpMessageTo('cda8bc89-6d6c-4d44-a41f-3fb03b97c732', 'command asdf', 'data asdf')
             # self.middleware.multicastReliable('command asdf', 'data asdf')
-            Middleware.subscribeOrderedDeliveryQ(lambda x, y: print(f'Delivery Recieved!!!!!!!!!!!!!!!!!!!!!!!!!!! command {x}; data {y}'))
+            #Middleware.subscribeOrderedDeliveryQ(lambda x, y: print(f'Delivery Recieved!!!!!!!!!!!!!!!!!!!!!!!!!!! command {x}; data {y}'))
             
             # self.middleware.multicastOrderedReliable('command 1', 'number 1')
             # self.middleware.multicastOrderedReliable('command 2', 'number 2')
             # self.middleware.multicastOrderedReliable('command 3', 'number 3')
-            sleep(20)
+            # sleep(20)
             pass
         tempState.run = state_Lobby_f
         ############################################## Voting
@@ -171,30 +178,43 @@ class Statemachine(): # there should be only one Instance of this class
         # SIMON STATES ###############################
         ############################################## waitForOtherPeers
         tempState = self.State("simon_waitForPeers")
+        def state_simon_waitForPeers_entry():
+            print("Waiting for players...")
+        tempState.entry = state_simon_waitForPeers_entry
+
         def state_simon_waitForPeers_f():
-            print("Wait for User to input string of chars.")
-            print("Multicast string of chars to others.")
-            Statemachine.switchStateTo("simon_startNewRound")
+            while len(self.players.playerList) < 2:
+                Statemachine.switchStateTo("simon_startNewRound")
+            
         tempState.run = state_simon_waitForPeers_f
         ############################################## startNewRound
         tempState = self.State("simon_startNewRound")
         def state_simon_startNewRound_f():
             # Simon starts a new round by declaring a new string
-            rawInput = input("What do you want to Multicast?")
-            # and reliably multicast it to all players
-            self.middleware.multicastReliable('startNewRound', rawInput)
-            print('multicastet: "' + rawInput + '" to all players')
+            self.simonSaysString = input("What do you want to Multicast?")
+            self.middleware.multicastReliable('startNewRound', self.simonSaysString)
+            print('multicastet: "' + self.simonSaysString + '" to all players')
             Statemachine.switchStateTo("simon_waitForResponses")
         tempState.run = state_simon_startNewRound_f
         ############################################## waitForResponses
         tempState = self.State("simon_waitForResponses")
+        def state_simon_waitForResponses_entry():
+            Middleware.subscribeOrderedDeliveryQ(collectPlayerInput_f)
+        tempState.entry = state_simon_waitForResponses_entry
+
+        def collectPlayerInput_f(command, data):
+            temp = (command, data)
+            self.playersResponses.append(temp)
+
         def state_simon_waitForResponses_f():
-            print("Wait 30 seconds for other peer's game round input responses with t/o.")
-            self.middleware.subscribeUnicastListener(self.listenForPlayersList)
-            # if allPeersResponded or timeoutReached:
-            #     print("Evaluate the winner if everyone responded OR timeout reached.")
-            #     print("Multicast to every round participant the updated scoreboard.")
-            #     Statemachine.switchStateTo("Voting")
+            if len(self.playersResponses) == len(self.players.playerList):
+                for response in self.playersResponses:
+                    # TODO pseudo code from here ...
+                    if response.playerInput == self.simonSaysString:
+                        self.players[response.playerUUID].points += 10
+                        break
+                    # TODO ... to here
+                self.players.printLobby()
         tempState.run = state_simon_waitForResponses_f
 
         # PLAYER STATES ##############################

@@ -14,10 +14,10 @@ class PlayersList():
         print("GAME LOBBY".center(40,'_'))
         for player in sorted(self.playerList.values(), reverse=True):
             print('{:<30}'.format(player.name), " | ", player.points)
-        if len(self.playerList)<=1:
-            print("\nyou can't start the game yet, wait for more players")
-        else:
-            print("Press 'ü' to enter the game \n someone needs to implement this part")
+        # if len(self.playerList)<=1:
+        #     print("\nyou can't start the game yet, wait for more players")
+        # else:
+        #     print("Press 'ü' to enter the game \n someone needs to implement this part")
             # this might be an issue though, because mabe if you write input() you block this thread?
             # but maybe this is not an issue, because the architecture I have used is very nice!!!??? 
     

@@ -145,6 +145,8 @@ class Statemachine(): # there should be only one Instance of this class
                 # only 1 player in list --> self 
                 self.middleware.leaderUUID = self.UUID
                 self.switchStateTo("simon_waitForPeers")
+            else:
+                self.switchStateTo("player_waitGameStart")
             
             # State Actions
             
@@ -156,7 +158,7 @@ class Statemachine(): # there should be only one Instance of this class
             # sleep(2)
             # self.middleware.sendTcpMessageTo('cda8bc89-6d6c-4d44-a41f-3fb03b97c732', 'command asdf', 'data asdf')
             # self.middleware.multicastReliable('command asdf', 'data asdf')
-            #Middleware.subscribeOrderedDeliveryQ(lambda x, y: print(f'Delivery Recieved!!!!!!!!!!!!!!!!!!!!!!!!!!! command {x}; data {y}'))
+            #Middleware.subscribeOrderedDeliveryQ(lambda x, y, z: print(f'Delivery Recieved!!!!!!!!!!!!!!!!!!!!!!!!!!! command {x}; data {y}'))
             
             # self.middleware.multicastOrderedReliable('command 1', 'number 1')
             # self.middleware.multicastOrderedReliable('command 2', 'number 2')
@@ -166,8 +168,10 @@ class Statemachine(): # there should be only one Instance of this class
         tempState.run = state_Lobby_f
         ############################################## Voting
         tempState = self.State("Voting")
-        def state_voting_f():
+        def state_voting_entry():
             print('Voting started')
+        tempState.entry = state_voting_entry
+        def state_voting_f():
             # When I'm Simon I start the voting
             if self.UUID == self.middleware.leaderUUID:
                 self.middleware.initiateVoting()
@@ -179,7 +183,7 @@ class Statemachine(): # there should be only one Instance of this class
         ############################################## waitForOtherPeers
         tempState = self.State("simon_waitForPeers")
         def state_simon_waitForPeers_entry():
-            print("Waiting for players...")
+            print("Simon: Waiting for players...\n")
         tempState.entry = state_simon_waitForPeers_entry
 
         def state_simon_waitForPeers_f():
@@ -191,52 +195,64 @@ class Statemachine(): # there should be only one Instance of this class
         tempState = self.State("simon_startNewRound")
         def state_simon_startNewRound_f():
             # Simon starts a new round by declaring a new string
-            self.simonSaysString = input("What do you want to Multicast?")
-            self.middleware.multicastReliable('startNewRound', self.simonSaysString)
+            self.simonSaysString = input("Simon: What do you want to Multicast?\n")
+            self.middleware.multicastOrderedReliable('startNewRound', self.simonSaysString)
             print('multicastet: "' + self.simonSaysString + '" to all players')
             Statemachine.switchStateTo("simon_waitForResponses")
         tempState.run = state_simon_startNewRound_f
         ############################################## waitForResponses
         tempState = self.State("simon_waitForResponses")
         def state_simon_waitForResponses_entry():
-            Middleware.subscribeOrderedDeliveryQ(collectPlayerInput_f)
+            Middleware.subscribeOrderedDeliveryQ(self.collectPlayerInput_f)
         tempState.entry = state_simon_waitForResponses_entry
 
-        def collectPlayerInput_f(command, data):
-            temp = (command, data)
-            self.playersResponses.append(temp)
-
         def state_simon_waitForResponses_f():
-            if len(self.playersResponses) == len(self.players.playerList):
-                for response in self.playersResponses:
-                    # TODO pseudo code from here ...
-                    if response.playerInput == self.simonSaysString:
-                        self.players[response.playerUUID].points += 10
+            if len(self.players.playerList) < 2:
+                Statemachine.switchStateTo("simon_startNewRound")
+            if len(self.playersResponses) == len(self.players.playerList) - 1:
+                for uuid, inputStr in self.playersResponses:
+                    if inputStr == self.simonSaysString:
+                        self.players.playerList[uuid].points += 10
+                        self.switchStateTo("Voting")
                         break
-                    # TODO ... to here
-                self.players.printLobby()
         tempState.run = state_simon_waitForResponses_f
+
+        def state_simon_waitForResponses_exit():
+            self.simonSaysString = ''
+            self.players.printLobby()
+            Middleware.unSubscribeOrderedDeliveryQ(self.collectPlayerInput_f)
+        tempState.exit = state_simon_waitForResponses_exit
 
         # PLAYER STATES ##############################
         ############################################## State 3
         tempState = self.State("player_waitGameStart")
+        def state_player_waitGameStart_entry():
+            print("Player: Waiting for game to start.\n")
+            self.middleware.subscribeTCPUnicastListener(self.onReceiveGameStart_f)
+        tempState.entry = state_player_waitGameStart_entry
         def state_player_waitGameStart_f():
-            print("Receive multicast message from Simon containing the string.")
-            Statemachine.switchStateTo("player_playGame")
+            if self.simonSaysString != '':
+                Statemachine.switchStateTo("player_playGame")
         tempState.run = state_player_waitGameStart_f
         ############################################## State 3
         tempState = self.State("player_playGame")
+        def state_player_playGame_entry():
+            playerInput = input("Input your game response.")
+            self.middleware.multicastOrderedReliable("playerResponse", playerInput)
+        tempState.entry = state_player_playGame_entry
         def state_player_playGame_f():
-            print("Wait for User to input string of chars and add timestamp.")
-            print("Unicast string of chars to Simon.")
-            Statemachine.switchStateTo("player_awaitSimonResponse")
+            print("Wait for the result.")
+            Statemachine.switchStateTo("player_endGameRound")
         tempState.run = state_player_playGame_f
         ############################################## State 3
-        tempState = self.State("player_awaitSimonResponse")
-        def player_awaitSimonResponse():
-            print("Update and print own copy of global score board.")
+        tempState = self.State("player_endGameRound")
+        def player_endGameRound():
+            self.simonSaysString = ''
+            self.middleware.unSubscribeTCPUnicastListener(self.onReceiveGameStart_f)
+            self.players.printLobby()
+            # unsubscribe tcp unicast
             Statemachine.switchStateTo("Voting")
-        tempState.run = player_awaitSimonResponse
+        tempState.run = player_endGameRound
 
     def runLoop(self):
         states[self.currentState].run() # run the current state
@@ -254,7 +270,6 @@ class Statemachine(): # there should be only one Instance of this class
             #PlayerList:e54aaddc-54fa-4484-a834-b56f10d55e65,p1,0#
             playersList = data
             self.players.updateList(playersList)
-        
 
     def respondWithPlayerList(self, messengerUUID:str, command:str, data:str):
         if command == 'enterLobby':
@@ -267,6 +282,14 @@ class Statemachine(): # there should be only one Instance of this class
             # add the asking player to my game List
             self.players.addPlayer(messengerUUID, data)
             self.players.printLobby()
+
+    def onReceiveGameStart_f(self, uuid, socket, command, data):
+        if command == 'startNewRound':
+            self.simonSaysString = data
+    
+    def collectPlayerInput_f(self, messengerUUID, command, data):
+            if command == 'playerResponse':
+                self.playersResponses.append((messengerUUID, data))
 
 if __name__ == '__main__':
     """

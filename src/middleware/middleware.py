@@ -261,6 +261,9 @@ class Middleware():
             observer_func ([type]): observer_function needs to have observer_func(self, messengerUUID:str, clientsocket:socket.socket, command:str, data:str) 
         """
         self._tcpUnicastHandler.subscribeTCPUnicastListener(observer_func)
+
+    def unSubscribeTCPUnicastListener(self, rmFunc):
+        self._tcpUnicastHandler.unSubscribeTCPUnicastListener(rmFunc)
     @classmethod
     def subscribeOrderedDeliveryQ(cls, observer_func):
         """observer_func gets called every time this a new message gets queued in the delivery queue
@@ -270,7 +273,8 @@ class Middleware():
         cls.orderedReliableMulticast_ListenerList.append(observer_func)
     @classmethod
     def unSubscribeOrderedDeliveryQ(cls, rmFunc):
-        cls.orderedReliableMulticast_ListenerList.remove(rmFunc)
+        if rmFunc in cls.orderedReliableMulticast_ListenerList:
+            cls.orderedReliableMulticast_ListenerList.remove(rmFunc)
         
     def _updateAdresses(self, messengerUUID:str, command:str, data:str):
         """_updateAdresses recieves and decodes the IPAdresses List from the function 
@@ -511,7 +515,11 @@ class TCPUnicastHandler():
         clientsocket.close()
 
     def subscribeTCPUnicastListener(self, observer_func):
-        self._listenerList.append(observer_func)
+        self._listenerList.append(observer_func)   
+
+    def unSubscribeTCPUnicastListener(self, rmFunc):
+        if rmFunc in self._listenerList:
+            self._listenerList.remove(rmFunc) 
 
 class BroadcastHandler():
     def __init__(self):

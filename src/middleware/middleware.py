@@ -12,8 +12,10 @@ import socket
 import ipaddress
 from time import sleep
 usleep = lambda x: sleep(x/1000_000.0) # sleep for x microseconds
+from dataclasses import dataclass
 
-from lib.lib import HoldBackQ, OrderedMessage
+
+#from lib.lib import HoldBackQ, OrderedMessage
 
 ######################################### PARAMETER Constants
 BROADCAST_PORT = 61424
@@ -61,6 +63,7 @@ class Middleware():
         self.highestAgreedSequenceNumber = 0 # sequence Number for Total Ordering (ISIS Algorithm)
         self.highestbySelfProposedSeqNumber = 0
         self.subscribeTCPUnicastListener(self._responseFor_requestSequenceNumberForMessage)
+        self.subscribeTCPUnicastListener(self._acceptOrderedMulticast)
 
         self._holdBackQueue = HoldBackQ()
 
@@ -69,9 +72,9 @@ class Middleware():
         # only to be called if we don't yet have the neighbor
         # make ordered dict - uuid remains dict key
         ordered = sorted(ipaddresses.keys())
-        if len(ordered)>0:
-            print("\nsorted uuid dict:\t")
-            print(ordered)
+        # if len(ordered)>0:
+            # print("\nsorted uuid dict:\t")
+            # print(ordered)
         if ownUUID in ordered:
             ownIndex = ordered.index(ownUUID)
 
@@ -217,16 +220,17 @@ class Middleware():
             clientsocket.send(str.encode(str(proposedSeqNum) ) )
         # socket gets closed after this returns
     
-    # self.subscribeTCPUnicastListener(self._responseFor_requestSequenceNumberForMessage) in middleware.__init__
+    # self.subscribeTCPUnicastListener(self._acceptOrderedMulticast) in middleware.__init__
     def _acceptOrderedMulticast(self, messengerUUID:str, clientsocket:socket.socket, command:str, data:str):
         if command == 'OrderedMulticast with agreed SeqNum':
             data = data.split('$')
-            assert len(data) == 3, 'something went wrong with the spliting of the the data'
+            assert len(data) == 4, 'something went wrong with the spliting of the the data'
             messageCommand = data[0]
             messageData = data[1]
-            messageSeqNum = data[2]
+            messageSeqNum = int(data[2])
             messageID = data[3]
 
+            self.highestAgreedSequenceNumber = max(self.highestAgreedSequenceNumber, messageSeqNum)
             self._holdBackQueue.updateData(messageID, messageSeqNum, messageCommand, messageData)
 
 
@@ -566,5 +570,57 @@ class BroadcastHandler():
                         observer_func(messengerUUID, messageCommand, messageData)
                 data = None
 
-class ReliableMulticastHandler():
-    pass
+
+@dataclass(order=True)
+class OrderedMessage:
+    messageSeqNum: int
+    messageCommand: str
+    messageData: str
+    messageID:str
+    deliverable:bool
+
+class HoldBackQ():
+    def __init__(self):
+        self._queue = list()
+    def append(self,x:OrderedMessage):
+        self._queue.append(x)
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! NICE")
+        print('new message in HoldBackQ: \t', x)
+        # Upon receiving agreed (final) priority
+        #   – Mark message as deliverable
+        #   – Reorder the delivery queue based on the priorities
+        #   – Deliver any deliverable messages at the front of priority queue
+        # 
+        self.checkForDeliverables()
+    
+    def updateData(self, messageID:str, messageSeqNum:int, messageCommand:str, messageData:str):
+        #find Messagewith message ID
+        # set messageSeqNum
+        # set messageCommand
+        # set messageData
+        # setDeliverableTrue
+        print('HolbackQ updateData()')
+        
+        for m in self._queue:
+            if m.messageID == messageID:
+                m.messageSeqNum = messageSeqNum
+                m.messageCommand = messageCommand
+                m.messageData = messageData
+                m.deliverable = True
+                break
+
+        self.checkForDeliverables()
+
+    def checkForDeliverables(self):
+        # sort Q
+        # check if message with lowest ID is deliverable
+        # deliver this message
+        sortedQ = sorted(self._queue)
+        for m in sortedQ:
+            if m.deliverable:
+                for observer_func in Middleware.orderedReliableMulticast_ListenerList:
+                    observer_func(m.messageCommand, m.messageData)
+                self._queue.remove(m)
+
+            else:
+                break

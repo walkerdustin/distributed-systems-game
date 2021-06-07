@@ -149,7 +149,11 @@ class Statemachine(): # there should be only one Instance of this class
             # sleep(2)
             # self.middleware.sendTcpMessageTo('cda8bc89-6d6c-4d44-a41f-3fb03b97c732', 'command asdf', 'data asdf')
             # self.middleware.multicastReliable('command asdf', 'data asdf')
-            # self.middleware.multicastOrderedReliable('please', 'work, PLEEEEEAAASSSSEE')
+            Middleware.subscribeOrderedDeliveryQ(lambda x, y: print(f'Delivery Recieved!!!!!!!!!!!!!!!!!!!!!!!!!!! command {x}; data {y}'))
+            
+            # self.middleware.multicastOrderedReliable('command 1', 'number 1')
+            # self.middleware.multicastOrderedReliable('command 2', 'number 2')
+            # self.middleware.multicastOrderedReliable('command 3', 'number 3')
             sleep(20)
             pass
         tempState.run = state_Lobby_f

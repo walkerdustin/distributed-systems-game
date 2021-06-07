@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from middleware.middleware import Middleware
 
 @dataclass(order=True)
 class OrderedMessage:
@@ -14,11 +15,13 @@ class HoldBackQ():
         self._queue = list()
     def append(self,x:OrderedMessage):
         self._queue.append(x)
-
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! NICE")
+        print('new message in HoldBackQ: \t', x)
         # Upon receiving agreed (final) priority
         #   – Mark message as deliverable
         #   – Reorder the delivery queue based on the priorities
-        #   – Deliver any deliverable messages at the front of priority queue 
+        #   – Deliver any deliverable messages at the front of priority queue
+        # 
         self.checkForDeliverables()
     
     def updateData(self, messageID:str, messageSeqNum:int, messageCommand:str, messageData:str):
@@ -27,6 +30,7 @@ class HoldBackQ():
         # set messageCommand
         # set messageData
         # setDeliverableTrue
+        print('HolbackQ updateData()')
         
         for m in self._queue:
             if m.messageID == messageID:

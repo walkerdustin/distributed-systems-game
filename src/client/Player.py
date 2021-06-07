@@ -29,6 +29,9 @@ class PlayersList():
         for uuid, player in self.playerList.items():
             s += str(uuid)+','+str(player.name)+','+str(player.points)+'#'
         return s
+    
+    def addPoints(self, uuid:str, points:int):
+        self.playerList[uuid].points += points
 
     def updateList(self, playersList:str):
         """decodes the PlayersList string recieved via unicast

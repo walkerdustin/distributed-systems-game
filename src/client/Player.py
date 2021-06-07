@@ -1,16 +1,18 @@
+from dataclasses import dataclass
 
+@dataclass(order=True)
 class Player():
-    def __init__(self,uuid,name,points):
-        self.uuid = uuid
-        self.name = name
-        self.points = points
+    points:int
+    uuid:str
+    name:str
+
 class PlayersList():
     def __init__(self):
         self.playerList = {} # {uuid: Player}
     
     def printLobby(self):
         print("GAME LOBBY".center(40,'_'))
-        for uuid, player in self.playerList.items():
+        for player in sorted(self.playerList.values(), reverse=True):
             print('{:<30}'.format(player.name), " | ", player.points)
         if len(self.playerList)<=1:
             print("\nyou can't start the game yet, wait for more players")
@@ -20,7 +22,7 @@ class PlayersList():
             # but maybe this is not an issue, because the architecture I have used is very nice!!!??? 
     
     def addPlayer(self, uuid:str, name:str, points:int = 0):
-        self.playerList[uuid] = Player(uuid,name, points)
+        self.playerList[uuid] = Player(points, uuid,name )
     
     def toString(self): # , , #
         s = ''

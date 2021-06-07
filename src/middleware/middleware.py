@@ -154,7 +154,8 @@ class Middleware():
         self._tcpUnicastHandler.sendMessage(addr, command+':'+data)
     
     def sendTcpRequestTo(self, uuid:str, command:str, data:str=''):
-        pass
+        addr = Middleware.ipAdresses[uuid] 
+        return self._tcpUnicastHandler.sendTcpRequestTo(addr, command+':'+data) 
 
     def multicastReliable(self, command:str, data:str=''):
         message = command+':'+data

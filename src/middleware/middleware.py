@@ -46,7 +46,7 @@ class Middleware():
         Middleware.MY_UUID = UUID 
         self.statemashine =  statemashine
         self._broadcastHandler = BroadcastHandler()
-        self._unicastHandler = UnicastHandler()
+        self._unicastHandler = UDPUnicastHandler()
         self._tcpUnicastHandler = TCPUnicastHandler()
         self.subscribeUnicastListener(self._updateAdresses)
         self.subscribeTCPUnicastListener(self._checkForVotingAnnouncement)
@@ -334,7 +334,7 @@ class Middleware():
         return neighbourUUID
         # send to next higher node we start a voting with my UUID
 
-class UnicastHandler():
+class UDPUnicastHandler():
     _serverPort = 0 # later changed in the init, it is here to define it as a class variable, so that it is accessable easyly 
 
     def __init__(self):
@@ -342,8 +342,8 @@ class UnicastHandler():
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # AF_INET means that this socket Internet Protocol v4 addresses
                                                             #SOCK_DGRAM means this is a UDP scoket
         self._server_socket.bind(('', 0)) # ('', 0) '' use the lokal IP adress and 0 select a random open port
-        UnicastHandler._serverPort = self._server_socket.getsockname()[1] # returns the previously selected (random) port
-        print("ServerPort = ",UnicastHandler._serverPort)
+        UDPUnicastHandler._serverPort = self._server_socket.getsockname()[1] # returns the previously selected (random) port
+        print("ServerPort = ",UDPUnicastHandler._serverPort)
         self.incommingUnicastHistory = []
         self._listenerList = [] # observer pattern
 
@@ -353,7 +353,7 @@ class UnicastHandler():
 
     
     def sendMessage(self, addr, message:str):
-        self._server_socket.sendto(str.encode(Middleware.MY_UUID + '_'+IP_ADRESS_OF_THIS_PC + '_'+str(UnicastHandler._serverPort)+'_'+message), addr)
+        self._server_socket.sendto(str.encode(Middleware.MY_UUID + '_'+IP_ADRESS_OF_THIS_PC + '_'+str(UDPUnicastHandler._serverPort)+'_'+message), addr)
         #print('UnicastHandler: sent message: ', message,"\n\tto: ", addr)
 
     def _listenUnicast(self):
@@ -398,7 +398,7 @@ class TCPUnicastHandler():
         # Create a TCP socket for listening
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # AF_INET means that this socket Internet Protocol v4 addresses
                                                             #SOCK_STREAM means this is a TCP scoket
-        self._server_socket.bind(('', UnicastHandler._serverPort)) # ('', ) '' use the lokal IP adress and 0 select the same port as the udpUnicastHandler. you can use both protocols on the same port
+        self._server_socket.bind(('', UDPUnicastHandler._serverPort)) # ('', ) '' use the lokal IP adress and 0 select the same port as the udpUnicastHandler. you can use both protocols on the same port
 
         self.incommingUnicastHistory = []
         self._listenerList = [] # observer pattern
@@ -418,7 +418,7 @@ class TCPUnicastHandler():
         print('\n\naddr for connect:   ', addr)
         try:
             sendSocket.connect(addr)
-            messageBytes = str.encode(Middleware.MY_UUID + '_'+IP_ADRESS_OF_THIS_PC + '_'+str(UnicastHandler._serverPort)+'_'+message)
+            messageBytes = str.encode(Middleware.MY_UUID + '_'+IP_ADRESS_OF_THIS_PC + '_'+str(UDPUnicastHandler._serverPort)+'_'+message)
             sendSocket.send(messageBytes)
             print('TCPUnicastHandler: sent message: ', message,"\n\tto: ", addr)
         except ConnectionRefusedError:
@@ -444,7 +444,7 @@ class TCPUnicastHandler():
         response = None
         try:
             sendSocket.connect(addr)
-            messageBytes = str.encode(Middleware.MY_UUID + '_'+IP_ADRESS_OF_THIS_PC + '_'+str(UnicastHandler._serverPort)+'_'+message)
+            messageBytes = str.encode(Middleware.MY_UUID + '_'+IP_ADRESS_OF_THIS_PC + '_'+str(UDPUnicastHandler._serverPort)+'_'+message)
             sendSocket.send(messageBytes)
             print('TCPUnicastHandler: sent message: ', message,"\n\tto: ", addr)
             response = sendSocket.recv(BUFFER_SIZE).decode('utf-8')
@@ -537,7 +537,7 @@ class BroadcastHandler():
             broadcast_message (str): needs to have the format  "command:data" (the data could be csv encode with , and #)
         """
         # Send message on broadcast address
-        self._broadcast_socket.sendto(str.encode(Middleware.MY_UUID + '_'+IP_ADRESS_OF_THIS_PC + '_'+str(UnicastHandler._serverPort)+'_'+broadcast_message, encoding='utf-8'), (BROADCAST_IP, BROADCAST_PORT))
+        self._broadcast_socket.sendto(str.encode(Middleware.MY_UUID + '_'+IP_ADRESS_OF_THIS_PC + '_'+str(UDPUnicastHandler._serverPort)+'_'+broadcast_message, encoding='utf-8'), (BROADCAST_IP, BROADCAST_PORT))
         #                                                                                                                  ^this is the port where the _listen_UDP_Unicast_Thread ist listening on
         #self.broadcast_socket.close()
 

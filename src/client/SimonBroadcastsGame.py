@@ -33,35 +33,6 @@ from client.Player import PlayersList
 ######################################  CONSTANTS
 WAIT__MILLISECONDS_FOR_ANSWER = 1000
 
-#constants/defines
-# SUBNETMASK = "255.255.255.0"
-# BROADCAST_PORT = 61425
-
-# def enterGame(self, uuid):
-
-#     # Send broadcast message
-#     message = str(self.UUID) + ' at ' + IP_ADRESS_OF_THIS_PC + ' is looking for Simon.'
-#     broadcast(BROADCAST_IP, self.BROADCAST_PORT, message)
-#     print(message)
-#     hostSocket.bind((IP_ADRESS_OF_THIS_PC, self.BROADCAST_PORT))
-
-#     try:
-#         print('Waiting for response...')
-#         data, server = hostSocket.recvfrom(buffer_size)
-#         print('Received message from server: ', data.decode())
-#         # if str(data) == "is looking for Simon":
-#         #     self.becomeSimon # + you take the first slot in ring
-#         # elif str(data) == "i am Simon":
-#         #     self.becomeOther # + next free spot in ring is no. xxx
-#         # else:
-#         #     self.RaiseError
-
-#     except Exception as e:
-#         print(e)
-#     finally:
-#         hostSocket.close()
-#         print('Socket closed')
-#     pass
 
 states = {}                 # python dictionary {"key": value}
 class Statemachine(): # there should be only one Instance of this class
@@ -76,7 +47,6 @@ class Statemachine(): # there should be only one Instance of this class
     simonSaysString = ''
     playersResponses = []
 
-    #players = [] # uuid s of all active players
 
     ###############################################   internal class
     class State: # there are multiple instances of this class
@@ -148,14 +118,6 @@ class Statemachine(): # there should be only one Instance of this class
             
             # State Actions
             
-            # data = self.broadcastHandler.incommingBroadcastQ.pop()
-            # if time.time_ns() + WAIT__MILLISECONDS_FOR_ANSWER * 1_000_000 > self.StartWaitingTime:
-            #     self.switchStateTo("simon_startNewRound")
-            # if data: # if I got a response
-            #     self.switchStateTo("player_waitGameStart")
-            # sleep(2)
-            # self.middleware.sendTcpMessageTo('cda8bc89-6d6c-4d44-a41f-3fb03b97c732', 'command asdf', 'data asdf')
-            # self.middleware.multicastReliable('command asdf', 'data asdf')
             #Middleware.subscribeOrderedDeliveryQ(lambda x, y: print(f'Delivery Recieved!!!!!!!!!!!!!!!!!!!!!!!!!!! command {x}; data {y}'))
             
             # self.middleware.multicastOrderedReliable('command 1', 'number 1')

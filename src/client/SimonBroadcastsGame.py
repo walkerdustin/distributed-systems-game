@@ -132,13 +132,13 @@ class Statemachine(): # there should be only one Instance of this class
         tempState = self.State("Voting")
         def state_voting_entry():
             print('Voting started')
-        tempState.entry = state_voting_entry
-        def state_voting_f():
             # When I'm Simon I start the voting
             if self.UUID == self.middleware.leaderUUID:
                 self.middleware.initiateVoting()
             # else i'm doing nothing
-            
+        tempState.entry = state_voting_entry
+        def state_voting_f():
+            pass
         tempState.run = state_voting_f
 
         # SIMON STATES ###############################

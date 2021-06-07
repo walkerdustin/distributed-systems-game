@@ -193,6 +193,7 @@ class Middleware():
         # add to own holdbackQueue
         ownPropodesSeqNum = max(self.highestbySelfProposedSeqNumber, self.highestAgreedSequenceNumber) +1
         self._holdBackQueue.append(OrderedMessage(ownPropodesSeqNum, '', '', messageID, Middleware.MY_UUID, False))
+        self.highestbySelfProposedSeqNumber = ownPropodesSeqNum
         proposedSeqNumbers = []
         threadsList = []
         # make concurrent (multithreaded requests)
@@ -205,7 +206,7 @@ class Middleware():
         for t in threadsList:
             t.join()
 
-        proposedSeqNumbers.append(self.highestAgreedSequenceNumber+1)
+        proposedSeqNumbers.append(ownPropodesSeqNum)
         highestN = max(proposedSeqNumbers)
         self.highestAgreedSequenceNumber = max(highestN, self.highestAgreedSequenceNumber)
         self._holdBackQueue.updateData(messageID, highestN, command, message)

@@ -156,7 +156,7 @@ class Statemachine(): # there should be only one Instance of this class
         tempState.entry = state_simon_waitForPeers_entry
 
         def state_simon_waitForPeers_f():
-            while len(self.players.playerList) < 2:
+            if len(self.players.playerList) >= 3: # if there are 3 or more players in the lobby
                 Statemachine.switchStateTo("simon_startNewRound")
             
         tempState.run = state_simon_waitForPeers_f

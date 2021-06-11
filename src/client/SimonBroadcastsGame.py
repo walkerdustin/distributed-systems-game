@@ -29,6 +29,8 @@ from middleware.middleware import Middleware
 import time
 from client.Player import PlayersList
 
+# For None-blocking keyboard input (just for windows)
+import msvcrt
 
 ######################################  CONSTANTS
 WAIT__MILLISECONDS_FOR_ANSWER = 1000
@@ -196,11 +198,23 @@ class Statemachine(): # there should be only one Instance of this class
         ############################################## player_playGame
         tempState = self.State("player_playGame")
         def state_player_playGame_entry():
-            playerInput = input("\nInput your game response.\n")
-            self.middleware.multicastOrderedReliable("playerResponse", playerInput)
+            #playerInput = input("\nInput your game response.\n")
+            print("Simon said: ", self.simonSaysString)
+            print("Type your response: ")
+            self.playerInput = ''
+            self.player_playGame_InputDone = False
         tempState.entry = state_player_playGame_entry
         def state_player_playGame_f():
-            pass
+            if not self.player_playGame_InputDone:
+                if msvcrt.kbhit():
+                    key = msvcrt.getch().decode("utf-8")
+                    if key == '\r': # == Enter
+                        self.middleware.multicastOrderedReliable("playerResponse", self.playerInput)
+                        self.player_playGame_InputDone = True 
+                    else:
+                        self.playerInput += key
+                        print(key, end='') # print without a newline
+
         tempState.run = state_player_playGame_f
         def state_player_playGame_exit():            
             Middleware.unSubscribeOrderedDeliveryQ(self.onReceiveGameStart_f)

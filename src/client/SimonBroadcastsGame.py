@@ -103,7 +103,7 @@ class Statemachine(): # there should be only one Instance of this class
 
             # these two need to be first, else -> Race condition
             self.middleware.subscribeBroadcastListener(self.respondWithPlayerList)
-            self.middleware.subscribeUnicastListener(self.listenForPlayersList)
+            self.middleware.subscribeTCPUnicastListener(self.listenForPlayersList)
 
 
             #entry function
@@ -211,7 +211,7 @@ class Statemachine(): # there should be only one Instance of this class
         states[self.currentState].run() # run the current state
 
     ################################################################# Observer functions
-    def listenForPlayersList(self, messengerUUID:str, command:str, playersList:str):
+    def listenForPlayersList(self, messengerUUID:str, messengerSocket, command:str, playersList:str):
         """This funcion recieves and decodes the message sent from the function respondWithPlayerList
         the List is severated by , and # 
         
@@ -239,7 +239,7 @@ class Statemachine(): # there should be only one Instance of this class
 
                 responseCommand = 'PlayerList'
                 responseData = self.players.toString()
-                self.middleware.sendMessageTo(messengerUUID, responseCommand, responseData)
+                self.middleware.sendTcpMessageTo(messengerUUID, responseCommand, responseData)
     
     def onReceiveGameStart_f(self, messengerUUID, command, data):
         if command == 'startNewRound':

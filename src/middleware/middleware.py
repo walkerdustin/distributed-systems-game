@@ -47,7 +47,7 @@ class Middleware():
         self._broadcastHandler = BroadcastHandler()
         self._unicastHandler = UDPUnicastHandler()
         self._tcpUnicastHandler = TCPUnicastHandler()
-        self.subscribeUnicastListener(self._updateAdresses)
+        self.subscribeTCPUnicastListener(self._updateAdresses)
         self.subscribeTCPUnicastListener(self._checkForVotingAnnouncement)
 
         # Create Thread to send heartbeat
@@ -245,7 +245,7 @@ class Middleware():
         s=self.leaderUUID + '$'
         for uuid, (addr,port) in Middleware.ipAdresses.items():
             s +=  uuid+','+str(addr)+','+str(port)+'#'
-        self.sendMessageTo(uuid,command,s)
+        self.sendTcpMessageTo(uuid,command,s)
 
     def subscribeBroadcastListener(self, observer_func):
         """observer_func gets called every time there this programm recieves a broadcast message
@@ -283,7 +283,7 @@ class Middleware():
         if rmFunc in cls.orderedReliableMulticast_ListenerList:
             cls.orderedReliableMulticast_ListenerList.remove(rmFunc)
         
-    def _updateAdresses(self, messengerUUID:str, command:str, data:str):
+    def _updateAdresses(self, messengerUUID:str, clientsocket, command:str, data:str):
         """_updateAdresses recieves and decodes the IPAdresses List from the function 
         sendIPAdressesto(self,uuid)
 

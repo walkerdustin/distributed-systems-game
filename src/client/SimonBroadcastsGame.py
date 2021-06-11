@@ -186,7 +186,7 @@ class Statemachine(): # there should be only one Instance of this class
         tempState = self.State("player_waitGameStart")
         def state_player_waitGameStart_entry():
             print("Player: Waiting for game to start.\n")
-            self.middleware.subscribeOrderedDeliveryQ(self.onReceiveGameStart_f)
+            Middleware.subscribeOrderedDeliveryQ(self.onReceiveGameStart_f)
             Middleware.subscribeOrderedDeliveryQ(self.collectPlayerInput_f)
         tempState.entry = state_player_waitGameStart_entry
         def state_player_waitGameStart_f():
@@ -203,7 +203,7 @@ class Statemachine(): # there should be only one Instance of this class
             pass
         tempState.run = state_player_playGame_f
         def state_player_playGame_exit():            
-            self.middleware.unSubscribeOrderedDeliveryQ(self.onReceiveGameStart_f)
+            Middleware.unSubscribeOrderedDeliveryQ(self.onReceiveGameStart_f)
             Middleware.subscribeOrderedDeliveryQ(self.collectPlayerInput_f)
         tempState.exit = state_player_playGame_exit
 

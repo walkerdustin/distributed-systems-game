@@ -39,8 +39,10 @@ class PlayersList():
         Args:
             playersList (str): message looks like this: PlayerList:e54aaddc-54fa-4484-a834-b56f10d55e65,p1,0#
         """
+        # TODO, I should overwrite this List, but this would be a race condition; I would need a Thread Lock
         assert playersList[-1] =='#', f"the last character should be a #, maybe the string: {playersList} is empty"
         players = playersList.split('#')[0:-1] # split by the # (csv-style) and remove the last hashtag
+        assert len(players) >= 2, "in this list there should be at least the sender and me"
         for player in players:
             player = player.split(',')
             uuid = player[0]

@@ -94,15 +94,24 @@ class Statemachine(): # there should be only one Instance of this class
         ############################################## Lobby
         tempState = self.State("Lobby")
         def state_Lobby_entry():
+            # I assume, that I am the only one in this room
+            # Therefore I assume, that I am the Leader
+            self.middleware.leaderUUID = self.UUID
+            # If I am not the first one in this lobby, I will get a response from the leader,
+            # after I Broadcast "enter Lobby"
+            # Leader UUID is then set in listenForPlayerList, as only the leader sends 'playerList'
+
+            # these two need to be first, else -> Race condition
+            self.middleware.subscribeBroadcastListener(self.respondWithPlayerList)
+            self.middleware.subscribeUnicastListener(self.listenForPlayersList)
+
+
             #entry function
             command = 'enterLobby'
             data = self.playerName
             self.middleware.broadcastToAll(command,data)
             #self.StartWaitingTime = time.time_ns()
-            #print("entering Lobby...")
-            ## get Lobby members
-            self.middleware.subscribeBroadcastListener(self.respondWithPlayerList)
-            self.middleware.subscribeUnicastListener(self.listenForPlayersList)
+            
         tempState.entry = state_Lobby_entry
         ##########
         def state_Lobby_f():
@@ -110,22 +119,20 @@ class Statemachine(): # there should be only one Instance of this class
             # rawInput = input("want to vote? (v)")
             # if rawInput == 'v':
             #     self.middleware.initiateVoting()
-            sleep(1)
-            if len(self.players.playerList) <= 1:
-                # only 1 player in list --> self 
-                self.middleware.leaderUUID = self.UUID
+            
+            sleep(0.5) #sleep a 500 ms
+            if self.middleware.leaderUUID == self.UUID:
                 self.switchStateTo("simon_waitForPeers")
             else:
                 self.switchStateTo("player_waitGameStart")
             
-            # State Actions
             
             #Middleware.subscribeOrderedDeliveryQ(lambda x, y: print(f'Delivery Recieved!!!!!!!!!!!!!!!!!!!!!!!!!!! command {x}; data {y}'))
-            
             # self.middleware.multicastOrderedReliable('command 1', 'number 1')
             # self.middleware.multicastOrderedReliable('command 2', 'number 2')
             # self.middleware.multicastOrderedReliable('command 3', 'number 3')
             # sleep(20)
+            
             pass
         tempState.run = state_Lobby_f
         ############################################## Voting
@@ -204,7 +211,7 @@ class Statemachine(): # there should be only one Instance of this class
         states[self.currentState].run() # run the current state
 
     ################################################################# Observer functions
-    def listenForPlayersList(self, messengerUUID:str, command:str, data:str):
+    def listenForPlayersList(self, messengerUUID:str, command:str, playersList:str):
         """This funcion recieves and decodes the message sent from the function respondWithPlayerList
         the List is severated by , and # 
         
@@ -214,21 +221,25 @@ class Statemachine(): # there should be only one Instance of this class
         """
         if command == 'PlayerList':
             #PlayerList:e54aaddc-54fa-4484-a834-b56f10d55e65,p1,0#
-            playersList = data
-            self.players.updateList(playersList)
-        
 
-    def respondWithPlayerList(self, messengerUUID:str, command:str, data:str):
+            # I know that only the leader sends the player list
+            # this means, that messengerUUID has to be the leader
+            self.middleware.leaderUUID = messengerUUID
+
+            self.players.updateList(playersList)
+
+    def respondWithPlayerList(self, messengerUUID:str, command:str, playerName:str):
+        # only the leader responds with this list
         if command == 'enterLobby':
-            self.players.addPlayer(messengerUUID, data)
+            # add the asking player to my game List
+            self.players.addPlayer(messengerUUID, playerName)
+            # self.players.printLobby()
             if self.middleware.MY_UUID == self.middleware.leaderUUID:
                 self.middleware.sendIPAdressesto(messengerUUID)
 
                 responseCommand = 'PlayerList'
                 responseData = self.players.toString()
                 self.middleware.sendMessageTo(messengerUUID, responseCommand, responseData)
-                #self.players.printLobby()
-            # add the asking player to my game List
     
     def onReceiveGameStart_f(self, messengerUUID, command, data):
         if command == 'startNewRound':

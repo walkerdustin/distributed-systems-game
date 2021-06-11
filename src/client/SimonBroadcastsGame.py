@@ -149,7 +149,7 @@ class Statemachine(): # there should be only one Instance of this class
         tempState.run = state_voting_f
 
         # SIMON STATES ###############################
-        ############################################## waitForOtherPeers
+        ############################################## simon_waitForPeers
         tempState = self.State("simon_waitForPeers")
         def state_simon_waitForPeers_entry():
             print("Simon: Waiting for players...\n")
@@ -160,7 +160,7 @@ class Statemachine(): # there should be only one Instance of this class
                 Statemachine.switchStateTo("simon_startNewRound")
             
         tempState.run = state_simon_waitForPeers_f
-        ############################################## startNewRound
+        ############################################## simon_startNewRound
         tempState = self.State("simon_startNewRound")
         def state_simon_startNewRound_f():
             # Simon starts a new round by declaring a new string
@@ -182,7 +182,7 @@ class Statemachine(): # there should be only one Instance of this class
         tempState.exit = state_simon_waitForResponses_exit
 
         # PLAYER STATES ##############################
-        ############################################## State 3
+        ############################################## player_waitGameStart
         tempState = self.State("player_waitGameStart")
         def state_player_waitGameStart_entry():
             print("Player: Waiting for game to start.\n")
@@ -193,7 +193,7 @@ class Statemachine(): # there should be only one Instance of this class
             if self.simonSaysString != '':
                 Statemachine.switchStateTo("player_playGame")
         tempState.run = state_player_waitGameStart_f
-        ############################################## State 3
+        ############################################## player_playGame
         tempState = self.State("player_playGame")
         def state_player_playGame_entry():
             playerInput = input("\nInput your game response.\n")

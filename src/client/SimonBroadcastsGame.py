@@ -83,6 +83,7 @@ class Statemachine(): # there should be only one Instance of this class
             print("UUID is: ", self.UUID)
             #print("sleeping for 1 second\n\n")
             #sleep(1)
+            flush_input()
             self.playerName = input("Select Player Name: ")
             rawInput = input("\nSelect Game Room Port: \nLeave empty for (Default: 61424)")
             self.gameRoomPort = (int(rawInput) if rawInput else 61424) #LOL, why can I write something like this? Python is hillarious! XD
@@ -166,6 +167,7 @@ class Statemachine(): # there should be only one Instance of this class
         tempState = self.State("simon_startNewRound")
         def state_simon_startNewRound_f():
             # Simon starts a new round by declaring a new string
+            flush_input()
             self.simonSaysString = input("\nSimon: What do you want to Multicast?\n")
             self.middleware.multicastOrderedReliable('startNewRound', self.simonSaysString)
             print('multicastet: "' + self.simonSaysString + '" to all players')
@@ -203,6 +205,7 @@ class Statemachine(): # there should be only one Instance of this class
             print("Type your response: ")
             self.playerInput = ''
             self.player_playGame_InputDone = False
+            flush_input()
         tempState.entry = state_player_playGame_entry
         def state_player_playGame_f():
             if not self.player_playGame_InputDone:
@@ -267,6 +270,14 @@ class Statemachine(): # there should be only one Instance of this class
                     self.players.printLobby()
                     self.switchStateTo('Voting')
 
+def flush_input(): # flush the input buffer
+    try: # for windows
+        import msvcrt
+        while msvcrt.kbhit():
+            msvcrt.getch()
+    except ImportError: # for linux/unix
+        import sys, termios    
+        termios.tcflush(sys.stdin, termios.TCIOFLUSH)
 
 if __name__ == '__main__':
     """

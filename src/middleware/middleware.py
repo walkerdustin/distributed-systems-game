@@ -280,8 +280,8 @@ class Middleware():
         cls.orderedReliableMulticast_ListenerList.append(observer_func)
     @classmethod
     def unSubscribeOrderedDeliveryQ(cls, rmFunc):
-        if rmFunc in cls.orderedReliableMulticast_ListenerList:
-            cls.orderedReliableMulticast_ListenerList.remove(rmFunc)
+        # remove all occurences of Function
+        cls.orderedReliableMulticast_ListenerList = [x for x in cls.orderedReliableMulticast_ListenerList if x != rmFunc]
         
     def _updateAdresses(self, messengerUUID:str, clientsocket, command:str, data:str):
         """_updateAdresses recieves and decodes the IPAdresses List from the function 
@@ -528,8 +528,8 @@ class TCPUnicastHandler():
         self._listenerList.append(observer_func)
         
     def unSubscribeTCPUnicastListener(self, rmFunc):
-        if rmFunc in self._listenerList:
-            self._listenerList.remove(rmFunc)
+        # remove all occurences of Function
+        self._listenerList = [x for x in self._listenerList if x != rmFunc]
 class BroadcastHandler():
     def __init__(self):
         #self.incommingBroadcastQ = Q ()

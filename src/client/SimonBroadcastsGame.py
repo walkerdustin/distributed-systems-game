@@ -71,6 +71,7 @@ class Statemachine(): # there should be only one Instance of this class
         if "entry" in dir(states[toStateName]): # check if the state has a entry() function
             states[toStateName].entry()
         cls.currentState = toStateName
+        # print("___________Switch State to ", toStateName)
 
     def __init__(self):
         self.middleware = Middleware(Statemachine.UUID, self)
@@ -144,11 +145,15 @@ class Statemachine(): # there should be only one Instance of this class
             print('Voting started')
             # When I'm Simon I start the voting
             if Middleware.MY_UUID == self.middleware.leaderUUID:
+                self.middleware.leaderUUID = ''
                 self.middleware.initiateVoting()
             # else i'm doing nothing
         tempState.entry = state_voting_entry
         def state_voting_f():
-            pass
+            if Middleware.MY_UUID == self.middleware.leaderUUID:
+                Statemachine.switchStateTo("simon_waitForPeers")
+            else:
+                Statemachine.switchStateTo("player_waitGameStart")
         tempState.run = state_voting_f
 
         # SIMON STATES ###############################
@@ -198,6 +203,8 @@ class Statemachine(): # there should be only one Instance of this class
         def state_player_waitGameStart_f():
             if self.simonSaysString != '':
                 Statemachine.switchStateTo("player_playGame")
+            elif self.middleware.leaderUUID == Middleware.MY_UUID:
+                Statemachine.switchStateTo("simon_waitForPeers")
         tempState.run = state_player_waitGameStart_f
         ############################################## player_playGame
         tempState = self.State("player_playGame")

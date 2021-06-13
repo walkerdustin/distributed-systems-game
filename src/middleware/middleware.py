@@ -314,7 +314,7 @@ class Middleware():
                 # set leaderUUID as my UUID
                 self.leaderUUID = Middleware.MY_UUID
                 # set GameState to simon_startNewRound
-                self.statemashine.switchStateTo('simon_startNewRound')
+                # self.statemashine.switchStateTo('simon_startNewRound')
             # if smaller UUID
             elif data < Middleware.MY_UUID:
                 # send my UUID to neighbour
@@ -332,7 +332,7 @@ class Middleware():
             print('new Leader got elected\n')
             self.leaderUUID = data
             # set GameState to state_player_waitGameStart_f
-            self.statemashine.switchStateTo('player_waitGameStart')
+            #self.statemashine.switchStateTo('player_waitGameStart')
 
     # diese Funktion muss aufgerufen werden um ein neues Voting zu starten
     def initiateVoting(self):

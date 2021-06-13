@@ -310,7 +310,7 @@ class Middleware():
                 # reliably multicast my UUID to all players
                 self.multicastReliable('leaderElected', self.MY_UUID)
                 # set leaderUUID as my UUID
-                Middleware.leaderUUID = data
+                Middleware.leaderUUID = self.MY_UUID
                 # set GameState to simon_startNewRound
                 self.statemashine.switchStateTo('simon_startNewRound')
             # if smaller UUID
@@ -337,7 +337,7 @@ class Middleware():
         # send to lowerNeighbour: voting with my UUID
         command = 'voting'
         data = self.MY_UUID
-        print('Started new Voting!\n')
+        print('Initiate new Voting!\n')
         #print('\nsend voting command with my UUID (' + self.MY_UUID + ') to lowerNeighbour')
         self.sendTcpMessageTo(self.findLowerNeighbour(), command, data)
 

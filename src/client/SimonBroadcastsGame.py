@@ -155,7 +155,9 @@ class Statemachine(): # there should be only one Instance of this class
         ############################################## simon_waitForPeers
         tempState = self.State("simon_waitForPeers")
         def state_simon_waitForPeers_entry():
-            print("Simon: Waiting for players...\n")
+            if len(self.players.playerList) < 3:
+                print("Simon: Waiting for players...")
+                print("At least 3 Players are needed to play the game")
         tempState.entry = state_simon_waitForPeers_entry
 
         def state_simon_waitForPeers_f():
@@ -268,7 +270,7 @@ class Statemachine(): # there should be only one Instance of this class
                     self.players.addPoints(messengerUUID, 10)
                     self.simonSaysString = ''
                     self.players.printLobby()
-                    self.switchStateTo('Voting')
+                    self.switchStateTo("Voting")
 
 def flush_input(): # flush the input buffer
     try: # for windows

@@ -33,7 +33,6 @@ class Middleware():
     
     ipAdresses = {} # {uuid: (ipadress, port)} (str , int)
     MY_UUID = '' # later changed in the init, it is here to define it as a class variable, so that it is accessable easyly 
-    leaderUUID = ''
 
     neighborUUID = None
     neighborAlive = False
@@ -59,12 +58,15 @@ class Middleware():
         # Subscribe heartbeat lost player handler to tcp unicastlistener
         self.subscribeTCPUnicastListener(self._listenLostPlayer)
 
+        # For Reliable Muticast with Total Ordering with ISIS-Algorithm
         self.highestAgreedSequenceNumber = 0 # sequence Number for Total Ordering (ISIS Algorithm)
         self.highestbySelfProposedSeqNumber = 0
         self.subscribeTCPUnicastListener(self._responseFor_requestSequenceNumberForMessage)
         self.subscribeTCPUnicastListener(self._acceptOrderedMulticast)
 
+        # middelware objekt Variables
         self._holdBackQueue = HoldBackQ()
+        self.leaderUUID = ''
 
     # INFO: This works
     def findNeighbor(self, ownUUID, ipaddresses):
@@ -106,7 +108,7 @@ class Middleware():
                     # send update to everyone else
                     self.multicastReliable('lostplayer', Middleware.neighborUUID)
                     # check if neighbor is leader
-                    if Middleware.neighborUUID == Middleware.leaderUUID:
+                    if Middleware.neighborUUID == self.leaderUUID:
                         self.initiateVoting()
                     
                     Middleware.neighborUUID = None
@@ -304,31 +306,31 @@ class Middleware():
     def _checkForVotingAnnouncement(self, messengerUUID:str, clientsocket:socket.socket, command:str, data:str):
         if command == 'voting':
             # if same UUID
-            if data == self.MY_UUID:
+            if data == Middleware.MY_UUID:
                 # i'm Simon
                 print('\nI am the new Simon\n')
                 # reliably multicast my UUID to all players
-                self.multicastReliable('leaderElected', self.MY_UUID)
+                self.multicastReliable('leaderElected', Middleware.MY_UUID)
                 # set leaderUUID as my UUID
-                Middleware.leaderUUID = self.MY_UUID
+                self.leaderUUID = Middleware.MY_UUID
                 # set GameState to simon_startNewRound
                 self.statemashine.switchStateTo('simon_startNewRound')
             # if smaller UUID
-            elif data < self.MY_UUID:
+            elif data < Middleware.MY_UUID:
                 # send my UUID to neighbour
                 command = 'voting'
-                data = self.MY_UUID
-                #print('\nsend voting command with my UUID (' + self.MY_UUID + ') to lowerNeighbour')
+                data = Middleware.MY_UUID
+                #print('\nsend voting command with my UUID (' + Middleware.MY_UUID + ') to lowerNeighbour')
                 self.sendTcpMessageTo(self.findLowerNeighbour(), command, data)
             # if greater UUID
-            elif data > self.MY_UUID:
+            elif data > Middleware.MY_UUID:
                 # send received UUID to neighbour
                 command = 'voting'
                 print('\nsend voting command with recevied UUID (' + data + ') to lowerNeighbour\n')
                 self.sendTcpMessageTo(self.findLowerNeighbour(), command, data)
         elif command == 'leaderElected':
             print('new Leader got elected\n')
-            Middleware.leaderUUID = data
+            self.leaderUUID = data
             # set GameState to state_player_waitGameStart_f
             self.statemashine.switchStateTo('player_waitGameStart')
 
@@ -336,17 +338,17 @@ class Middleware():
     def initiateVoting(self):
         # send to lowerNeighbour: voting with my UUID
         command = 'voting'
-        data = self.MY_UUID
+        data = Middleware.MY_UUID
         print('Initiate new Voting!\n')
-        #print('\nsend voting command with my UUID (' + self.MY_UUID + ') to lowerNeighbour')
+        #print('\nsend voting command with my UUID (' + Middleware.MY_UUID + ') to lowerNeighbour')
         self.sendTcpMessageTo(self.findLowerNeighbour(), command, data)
 
     def findLowerNeighbour(self):
         ordered = sorted(self.ipAdresses.keys())
-        ownIndex = ordered.index(self.MY_UUID)
+        ownIndex = ordered.index(Middleware.MY_UUID)
 
         neighbourUUID = ordered[ownIndex - 1]
-        assert self.MY_UUID != neighbourUUID, 'I am my own neigbour that shouldnt happen'
+        assert Middleware.MY_UUID != neighbourUUID, 'I am my own neigbour that shouldnt happen'
         print('Neighbour: ' + neighbourUUID)
         return neighbourUUID
         # send to next higher node we start a voting with my UUID

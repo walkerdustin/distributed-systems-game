@@ -80,14 +80,14 @@ class Statemachine(): # there should be only one Instance of this class
         tempState = self.State("Initializing")
         def state_initializing_f():
             # State Actions
-            print("UUID is: ", self.UUID)
+            print("UUID is: ", Middleware.MY_UUID)
             #print("sleeping for 1 second\n\n")
             #sleep(1)
             flush_input()
             self.playerName = input("Select Player Name: ")
             rawInput = input("\nSelect Game Room Port: \nLeave empty for (Default: 61424)")
             self.gameRoomPort = (int(rawInput) if rawInput else 61424) #LOL, why can I write something like this? Python is hillarious! XD
-            self.players.addPlayer(self.UUID,self.playerName)
+            self.players.addPlayer(Middleware.MY_UUID,self.playerName)
             #self.players.printLobby()
             # State Transition.
             if True:
@@ -99,7 +99,7 @@ class Statemachine(): # there should be only one Instance of this class
         def state_Lobby_entry():
             # I assume, that I am the only one in this room
             # Therefore I assume, that I am the Leader
-            self.middleware.leaderUUID = self.UUID
+            self.middleware.leaderUUID = Middleware.MY_UUID
             # If I am not the first one in this lobby, I will get a response from the leader,
             # after I Broadcast "enter Lobby"
             # Leader UUID is then set in listenForPlayerList, as only the leader sends 'playerList'
@@ -124,7 +124,7 @@ class Statemachine(): # there should be only one Instance of this class
             #     self.middleware.initiateVoting()
             
             sleep(0.5) #sleep a 500 ms
-            if self.middleware.leaderUUID == self.UUID:
+            if self.middleware.leaderUUID == Middleware.MY_UUID:
                 self.switchStateTo("simon_waitForPeers")
             else:
                 self.switchStateTo("player_waitGameStart")
@@ -143,7 +143,7 @@ class Statemachine(): # there should be only one Instance of this class
         def state_voting_entry():
             print('Voting started')
             # When I'm Simon I start the voting
-            if self.UUID == self.middleware.leaderUUID:
+            if Middleware.MY_UUID == self.middleware.leaderUUID:
                 self.middleware.initiateVoting()
             # else i'm doing nothing
         tempState.entry = state_voting_entry
@@ -253,7 +253,7 @@ class Statemachine(): # there should be only one Instance of this class
             # add the asking player to my game List
             self.players.addPlayer(messengerUUID, playerName)
             # self.players.printLobby()
-            if self.middleware.MY_UUID == self.middleware.leaderUUID:
+            if Middleware.MY_UUID == self.middleware.leaderUUID:
                 self.middleware.sendIPAdressesto(messengerUUID)
 
                 responseCommand = 'PlayerList'

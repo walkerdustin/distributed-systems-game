@@ -130,14 +130,6 @@ class Statemachine(): # there should be only one Instance of this class
             else:
                 self.switchStateTo("player_waitGameStart")
             
-            
-            #Middleware.subscribeOrderedDeliveryQ(lambda x, y: print(f'Delivery Recieved!!!!!!!!!!!!!!!!!!!!!!!!!!! command {x}; data {y}'))
-            # self.middleware.multicastOrderedReliable('command 1', 'number 1')
-            # self.middleware.multicastOrderedReliable('command 2', 'number 2')
-            # self.middleware.multicastOrderedReliable('command 3', 'number 3')
-            # sleep(20)
-            
-            pass
         tempState.run = state_Lobby_f
         ############################################## Voting
         tempState = self.State("Voting")
